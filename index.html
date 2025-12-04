@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DMS - Dhananjay Manufacturing System</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23667eea'/><stop offset='100%25' style='stop-color:%23764ba2'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='url(%23g)'/><text x='50' y='68' font-family='Arial Black' font-size='45' fill='white' text-anchor='middle' font-weight='bold'>DMS</text></svg>">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230ea5e9'/%3E%3Cstop offset='100%25' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial Black' font-size='48' font-weight='900' fill='white' text-anchor='middle'%3EDMS%3C/text%3E%3C/svg%3E">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <link rel="stylesheet" href="style.css" />
+    <!-- Note: style.css is kept for now. Will be migrated to src/styles/main.css in future -->
 </head>
 
 <body>
@@ -15,14 +16,12 @@
         <div class="sidebar-header">
             <div class="sidebar-logo" id="sidebarLogo">
                 <div class="app-logo-container">
-                    <img src="" alt="DMS" class="app-logo-img" id="appLogoImg" style="display: none;">
-                    <div class="app-logo-default" id="appLogoDefault">
-                        <span class="logo-letter">D</span>
-                        <span class="logo-letter">M</span>
-                        <span class="logo-letter">S</span>
+                    <img src="" alt="DMS" class="app-logo-img" id="sidebarLogoImg" style="display: none;">
+                    <div class="app-logo-default" id="sidebarLogoDefault">
+                        <span class="logo-text">DMS</span>
                     </div>
                 </div>
-                <span class="app-name" id="appName">DMS</span>
+                <span class="app-name" id="sidebarAppName">DMS</span>
             </div>
             <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
                 <span>&times;</span>
@@ -43,8 +42,8 @@
                         <span class="nav-text">PMS</span>
                     </a>
                 </li>
-                <li id="settingsNavItem" style="display: none;">
-                    <a href="#" class="nav-item nav-module" data-module="settings" id="settingsNav">
+                <li id="appSettingsNavItem" style="display: none;">
+                    <a href="#" class="nav-item nav-module" data-module="app-settings" id="appSettingsNav">
                         <span class="nav-icon">⚙️</span>
                         <span class="nav-text">Settings</span>
                     </a>
@@ -63,19 +62,19 @@
                         <span>☰</span>
                     </button>
                     <div class="header-title-group">
-                        <div class="header-brand">
-                            <div class="header-logo-mini" id="headerLogoMini">
+                        <h1 class="logo">
+                            <div class="header-logo-container">
                                 <img src="" alt="DMS" class="header-logo-img" id="headerLogoImg" style="display: none;">
-                                <div class="header-logo-default" id="headerLogoDefault">DMS</div>
-                            </div>
-                            <div class="header-titles">
-                                <h1 class="logo" id="pageTitle">PMS</h1>
-                                <div id="pagePath" class="page-path breadcrumb">
-                                    <span class="breadcrumb-item" data-hash="#pms/dashboard">PMS</span>
-                                    <span class="breadcrumb-separator">/</span>
-                                    <span class="breadcrumb-item active">Dashboard</span>
+                                <div class="header-logo-default" id="headerLogoDefault">
+                                    <span class="logo-text">DMS</span>
                                 </div>
                             </div>
+                            <span id="pageTitle">PMS</span>
+                        </h1>
+                        <div id="pagePath" class="page-path breadcrumb">
+                            <span class="breadcrumb-item" data-hash="#pms/dashboard">PMS</span>
+                            <span class="breadcrumb-separator">/</span>
+                            <span class="breadcrumb-item active">Dashboard</span>
                         </div>
                     </div>
                 </div>
@@ -1013,99 +1012,6 @@
                 </div>
             </div>
 
-            <!-- Settings Page (Admin Only) -->
-            <div id="settingsPage" class="page">
-                <div class="content-header">
-                    <h2>Settings</h2>
-                    <p class="subtitle">Configure application settings and manage users (Admin Only)</p>
-                </div>
-
-                <!-- Settings Cards Grid -->
-                <div class="settings-cards-grid">
-                    <!-- App Customization Card -->
-                    <div class="settings-card app-customization-card">
-                        <div class="settings-card-header">
-                            <div class="settings-card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                                <span>🎨</span>
-                            </div>
-                            <h3>App Customization</h3>
-                        </div>
-                        <div class="settings-card-body">
-                            <p class="settings-card-description">Customize the application name and logo</p>
-                            
-                            <div class="app-preview-section">
-                                <div class="app-preview-logo" id="previewLogo">
-                                    <img src="" alt="Logo Preview" id="previewLogoImg" style="display: none;">
-                                    <div class="preview-logo-default" id="previewLogoDefault">
-                                        <span>D</span><span>M</span><span>S</span>
-                                    </div>
-                                </div>
-                                <div class="app-preview-name" id="previewAppName">DMS</div>
-                                <div class="app-preview-fullname" id="previewAppFullName">Dhananjay Manufacturing System</div>
-                            </div>
-
-                            <form id="appCustomizationForm" class="app-customization-form">
-                                <div class="form-group">
-                                    <label for="customAppName">App Short Name</label>
-                                    <input type="text" id="customAppName" name="customAppName" placeholder="DMS" maxlength="10">
-                                    <small>Short name displayed in sidebar (max 10 chars)</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="customAppFullName">App Full Name</label>
-                                    <input type="text" id="customAppFullName" name="customAppFullName" placeholder="Dhananjay Manufacturing System" maxlength="50">
-                                    <small>Full name displayed on login page</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="customAppLogo">App Logo</label>
-                                    <div class="logo-upload-area" id="logoUploadArea">
-                                        <input type="file" id="customAppLogo" name="customAppLogo" accept="image/*" style="display: none;">
-                                        <div class="upload-placeholder" id="uploadPlaceholder">
-                                            <span class="upload-icon">📁</span>
-                                            <span>Click or drag to upload logo</span>
-                                            <small>PNG, JPG, SVG (max 500KB)</small>
-                                        </div>
-                                        <div class="upload-preview" id="uploadPreview" style="display: none;">
-                                            <img src="" alt="Logo" id="uploadPreviewImg">
-                                            <button type="button" class="remove-logo-btn" id="removeLogoBtn">✕</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="form-actions">
-                                    <button type="button" class="btn-secondary" id="resetAppCustomization">Reset to Default</button>
-                                    <button type="submit" class="btn-primary" id="saveAppCustomization">
-                                        <span class="btn-icon">💾</span>
-                                        Save Changes
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-
-                    <!-- User Management Card -->
-                    <div class="settings-card user-management-card" data-page="user-management">
-                        <div class="settings-card-header">
-                            <div class="settings-card-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                                <span>👥</span>
-                            </div>
-                            <h3>User Management</h3>
-                        </div>
-                        <div class="settings-card-body">
-                            <p class="settings-card-description">Manage users, roles, and access permissions</p>
-                            <div class="settings-card-stats">
-                                <div class="stat-item">
-                                    <span class="stat-label">Total Users:</span>
-                                    <span class="stat-value" id="settingsUserCount">-</span>
-                                </div>
-                            </div>
-                            <button class="btn-primary settings-card-action" id="goToUserManagement">
-                                <span class="btn-icon">→</span>
-                                Manage Users
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- User Management Page (Admin Only) -->
             <div id="userManagementPage" class="page">
                 <div class="content-header">
@@ -1120,10 +1026,6 @@
                     <button class="btn-secondary" id="syncUsersBtn" title="Sync all users from authentication">
                         <span class="btn-icon">🔄</span>
                         Sync Users
-                    </button>
-                    <button class="btn-secondary" id="backToSettingsBtn">
-                        <span class="btn-icon">←</span>
-                        Back to Settings
                     </button>
                 </div>
 
@@ -1154,6 +1056,147 @@
                         <div class="empty-icon">👥</div>
                         <h3>No users found</h3>
                         <p>Get started by adding your first user</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Settings Dashboard Page (Admin Only) -->
+            <div id="appSettingsPage" class="page">
+                <div class="content-header">
+                    <h2>Application Settings</h2>
+                    <p class="subtitle">Configure application settings, branding, and user management (Admin Only)</p>
+                </div>
+
+                <!-- Settings Dashboard Cards Grid -->
+                <div class="dashboard-cards-grid settings-cards-grid">
+                    <!-- App Branding Card -->
+                    <div class="dashboard-card settings-card" data-settings-page="app-branding">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);">
+                            <span class="card-icon">🎨</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">App Branding</h3>
+                            <p class="dashboard-card-description">Customize app name, logo, and appearance</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Current Name:</span>
+                                <span class="dashboard-card-stat-value" id="currentAppNameDisplay">DMS</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- User Management Card -->
+                    <div class="dashboard-card settings-card" data-settings-page="user-management">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);">
+                            <span class="card-icon">👥</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">User Management</h3>
+                            <p class="dashboard-card-description">Manage users, roles, and access permissions</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Users:</span>
+                                <span class="dashboard-card-stat-value" id="settingsUserCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Branding Page (Admin Only) -->
+            <div id="appBrandingPage" class="page">
+                <div class="content-header">
+                    <h2>App Branding</h2>
+                    <p class="subtitle">Customize the application name, logo, and appearance</p>
+                </div>
+
+                <div class="branding-config-container">
+                    <!-- Current Branding Preview -->
+                    <div class="branding-preview-card">
+                        <h3>Current Branding Preview</h3>
+                        <div class="branding-preview">
+                            <div class="preview-logo-container">
+                                <img src="" alt="Logo" class="preview-logo-img" id="previewLogoImg" style="display: none;">
+                                <div class="preview-logo-default" id="previewLogoDefault">
+                                    <span class="logo-text" id="previewLogoText">DMS</span>
+                                </div>
+                            </div>
+                            <div class="preview-app-info">
+                                <h4 id="previewAppName">DMS</h4>
+                                <p id="previewAppFullName">Dhananjay Manufacturing System</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Branding Configuration Form -->
+                    <div class="branding-config-card">
+                        <h3>Configure Branding</h3>
+                        <form id="brandingForm" class="branding-form">
+                            <div class="form-group">
+                                <label for="appShortName">App Short Name (Displayed in sidebar) <span class="required">*</span></label>
+                                <input type="text" id="appShortName" name="appShortName" value="DMS" maxlength="10" required placeholder="e.g., DMS">
+                                <small class="form-help">Maximum 10 characters. This appears in the sidebar.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="appFullName">App Full Name <span class="required">*</span></label>
+                                <input type="text" id="appFullName" name="appFullName" value="Dhananjay Manufacturing System" maxlength="100" required placeholder="e.g., Dhananjay Manufacturing System">
+                                <small class="form-help">Full application name for display purposes.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="appLogoFile">Upload Logo (Optional)</label>
+                                <div class="logo-upload-container">
+                                    <input type="file" id="appLogoFile" name="appLogoFile" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="logo-file-input">
+                                    <label for="appLogoFile" class="logo-upload-btn">
+                                        <span class="btn-icon">📁</span>
+                                        Choose Image
+                                    </label>
+                                    <span class="logo-file-name" id="logoFileName">No file chosen</span>
+                                    <button type="button" class="btn-remove-logo" id="removeLogoBtn" style="display: none;" title="Remove logo">✕</button>
+                                </div>
+                                <div class="logo-upload-progress" id="logoUploadProgress" style="display: none;">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="logoProgressFill"></div>
+                                    </div>
+                                    <span class="progress-text" id="logoProgressText">Uploading...</span>
+                                </div>
+                                <small class="form-help">Supported formats: PNG, JPG, SVG, WebP. Max size: 2MB.</small>
+                                <input type="hidden" id="appLogoUrl" name="appLogoUrl">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="appLogoText">Logo Text (when no image)</label>
+                                <input type="text" id="appLogoText" name="appLogoText" value="DMS" maxlength="4" placeholder="e.g., DMS">
+                                <small class="form-help">Short text (max 4 chars) displayed when no logo image is set.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="appPrimaryColor">Primary Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" id="appPrimaryColor" name="appPrimaryColor" value="#0ea5e9">
+                                    <input type="text" id="appPrimaryColorText" value="#0ea5e9" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$">
+                                </div>
+                                <small class="form-help">Primary brand color used for logo background gradient.</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="appSecondaryColor">Secondary Color</label>
+                                <div class="color-input-group">
+                                    <input type="color" id="appSecondaryColor" name="appSecondaryColor" value="#6366f1">
+                                    <input type="text" id="appSecondaryColorText" value="#6366f1" maxlength="7" pattern="^#[0-9A-Fa-f]{6}$">
+                                </div>
+                                <small class="form-help">Secondary brand color for gradient effect.</small>
+                            </div>
+
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" id="resetBrandingBtn">Reset to Default</button>
+                                <button type="submit" class="btn-primary" id="saveBrandingBtn">
+                                    <span class="btn-icon">💾</span>
+                                    Save Branding
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -1384,20 +1427,18 @@
                     <div class="shape shape-dot-small"></div>
                     <div class="shape shape-circle-small"></div>
                 </div>
+                <div class="login-greeting-top">
+                    <p>Welcome! Have a productive day.</p>
+                </div>
                 <div class="login-branding">
-                    <div class="login-logo" id="loginLogo">
+                    <div class="login-logo-container">
                         <img src="" alt="DMS" class="login-logo-img" id="loginLogoImg" style="display: none;">
                         <div class="login-logo-default" id="loginLogoDefault">
-                            <span class="login-logo-letter">D</span>
-                            <span class="login-logo-letter">M</span>
-                            <span class="login-logo-letter">S</span>
+                            <span class="logo-text" id="loginLogoText">DMS</span>
                         </div>
                     </div>
                     <h1 class="login-app-name" id="loginAppName">DMS</h1>
-                    <h2 class="login-app-fullname" id="loginAppFullName">Dhananjay Manufacturing System</h2>
-                </div>
-                <div class="login-greeting">
-                    <p>Welcome! Please login to continue.</p>
+                    <h2 class="login-app-full-name" id="loginAppFullName">Dhananjay Manufacturing System</h2>
                 </div>
             </div>
             

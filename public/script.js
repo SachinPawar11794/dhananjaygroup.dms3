@@ -387,34 +387,54 @@ function navigateToHash(hash, addToHistory = true) {
         ];
         if (openFormBtn) openFormBtn.style.display = "none";
         loadTaskManagerTable(1);
-    } else if (module === "settings") {
+    } else if (module === "user-management") {
         navModules.forEach(nav => nav.classList.remove("active"));
-        const settingsModule = document.querySelector('.nav-module[data-module="settings"]');
+        const userModule = document.querySelector('.nav-module[data-module="user-management"]');
+        if (userModule) userModule.classList.add("active");
+        if (pmsSubmenu) pmsSubmenu.style.display = "none";
+        
+        document.getElementById("userManagementPage")?.classList.add("active");
+        title = "User Management";
+        breadcrumbPath = [
+            { label: "Settings", hash: "#app-settings" },
+            { label: "User Management" }
+        ];
+        if (openFormBtn) openFormBtn.style.display = "none";
+        checkAdminAndLoadUsers();
+    } else if (module === "app-settings") {
+        navModules.forEach(nav => nav.classList.remove("active"));
+        const settingsModule = document.querySelector('.nav-module[data-module="app-settings"]');
         if (settingsModule) settingsModule.classList.add("active");
         if (pmsSubmenu) pmsSubmenu.style.display = "none";
         
         if (page === "user-management") {
             document.getElementById("userManagementPage")?.classList.add("active");
-            title = "User Management";
-            breadcrumbPath = [
-                { label: "Settings", hash: "#settings" },
-                { label: "User Management" }
-            ];
-            checkAdminAndLoadUsers();
-        } else {
-            document.getElementById("settingsPage")?.classList.add("active");
             title = "Settings";
             breadcrumbPath = [
-                { label: "Settings", hash: "#settings" },
-                { label: "Dashboard" }
+                { label: "Settings", hash: "#app-settings" },
+                { label: "User Management" }
             ];
-            loadSettingsPageData();
+            if (openFormBtn) openFormBtn.style.display = "none";
+            checkAdminAndLoadUsers();
+        } else if (page === "app-branding") {
+            document.getElementById("appBrandingPage")?.classList.add("active");
+            title = "Settings";
+            breadcrumbPath = [
+                { label: "Settings", hash: "#app-settings" },
+                { label: "App Branding" }
+            ];
+            if (openFormBtn) openFormBtn.style.display = "none";
+            loadBrandingSettings();
+        } else {
+            // Default to app settings dashboard
+            document.getElementById("appSettingsPage")?.classList.add("active");
+            title = "Settings";
+            breadcrumbPath = [
+                { label: "Settings", hash: "#app-settings" }
+            ];
+            if (openFormBtn) openFormBtn.style.display = "none";
+            loadSettingsPageStats();
         }
-        if (openFormBtn) openFormBtn.style.display = "none";
-    } else if (module === "user-management") {
-        // Legacy route - redirect to settings/user-management
-        navigateToHash("#settings/user-management", addToHistory);
-        return;
     }
     
     // Update UI
@@ -566,8 +586,10 @@ function initializeNavigation() {
                 navigateToHash("#pms/dashboard", true);
             } else if (targetModule === "task-manager") {
                 navigateToHash("#task-manager", true);
-            } else if (targetModule === "settings") {
-                navigateToHash("#settings", true);
+            } else if (targetModule === "user-management") {
+                navigateToHash("#user-management", true);
+            } else if (targetModule === "app-settings") {
+                navigateToHash("#app-settings", true);
             }
             
             // Close sidebar on mobile after navigation
@@ -658,6 +680,30 @@ function initializeNavigation() {
                 navigateToHash("#pms/loss-reason", true);
             } else if (targetPage === "hourly-report") {
                 navigateToHash("#pms/hourly-report", true);
+            }
+        });
+    });
+
+    // Handle Settings dashboard card clicks
+    const settingsCards = document.querySelectorAll(".settings-card");
+    settingsCards.forEach((card) => {
+        card.addEventListener("click", (e) => {
+            e.preventDefault();
+            const targetSettingsPage = card.getAttribute("data-settings-page");
+            if (!targetSettingsPage) return;
+
+            // Ensure Settings module is marked active
+            const settingsModule = document.querySelector('.nav-module[data-module="app-settings"]');
+            if (settingsModule) {
+                navModules.forEach(nav => nav.classList.remove("active"));
+                settingsModule.classList.add("active");
+            }
+
+            // Navigate to the settings sub-page
+            if (targetSettingsPage === "user-management") {
+                navigateToHash("#app-settings/user-management", true);
+            } else if (targetSettingsPage === "app-branding") {
+                navigateToHash("#app-settings/app-branding", true);
             }
         });
     });
@@ -6482,24 +6528,21 @@ async function isCurrentUserAdmin() {
     }
 }
 
-// Check admin status and show/hide settings menu (admin only)
+// Check admin status and show/hide admin-only menus (Settings)
 async function checkAdminStatus() {
     try {
         const isAdmin = await isCurrentUserAdmin();
-        const settingsNavItem = document.getElementById("settingsNavItem"); // Get parent <li> element
-        const settingsNav = document.getElementById("settingsNav");
         
-        console.log("Admin status check:", { isAdmin, hasNavItem: !!settingsNavItem, hasNav: !!settingsNav });
+        // Show/hide Settings menu (admin only)
+        const appSettingsNavItem = document.getElementById("appSettingsNavItem");
+        const appSettingsNav = document.getElementById("appSettingsNav");
         
-        if (settingsNavItem) {
-            if (isAdmin) {
-                settingsNavItem.style.display = "block";
-            } else {
-                settingsNavItem.style.display = "none";
-            }
-        } else if (settingsNav) {
-            // Fallback if navItem doesn't exist
-            settingsNav.style.display = isAdmin ? "flex" : "none";
+        console.log("Admin status check:", { isAdmin, hasSettingsNavItem: !!appSettingsNavItem });
+        
+        if (appSettingsNavItem) {
+            appSettingsNavItem.style.display = isAdmin ? "block" : "none";
+        } else if (appSettingsNav) {
+            appSettingsNav.style.display = isAdmin ? "flex" : "none";
         }
         
         return isAdmin;
@@ -7164,11 +7207,9 @@ if (window.supabase && window.supabase.auth) {
     window.supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             await checkAdminStatus();
-            // Load app settings on login
-            await loadAppSettings();
         } else if (event === 'SIGNED_OUT') {
-            const settingsNavItem = document.getElementById("settingsNavItem");
-            if (settingsNavItem) settingsNavItem.style.display = "none";
+            const userManagementNavItem = document.getElementById("userManagementNavItem");
+            if (userManagementNavItem) userManagementNavItem.style.display = "none";
         }
     });
 }
@@ -7574,92 +7615,91 @@ document.addEventListener("DOMContentLoaded", () => {
             loadTaskManagerTable(1);
         });
     }
-
-    // Initialize Settings page functionality
-    initializeSettingsPage();
 });
 
-// ============================================
-// APP CUSTOMIZATION & SETTINGS PAGE
-// ============================================
+// ==================== APP BRANDING & SETTINGS ====================
 
-// Default app settings
-const defaultAppSettings = {
-    app_name: 'DMS',
+// Default branding settings
+const defaultBranding = {
+    app_short_name: 'DMS',
     app_full_name: 'Dhananjay Manufacturing System',
-    app_logo_url: null
+    app_logo_url: '',
+    app_logo_text: 'DMS',
+    app_primary_color: '#0ea5e9',
+    app_secondary_color: '#6366f1'
 };
 
-// Current app settings (loaded from DB or defaults)
-let currentAppSettings = { ...defaultAppSettings };
+// Current branding settings (loaded from Supabase)
+let currentBranding = { ...defaultBranding };
 
-// Load app settings from database
-async function loadAppSettings() {
+// Load branding settings from Supabase
+async function loadAppBranding() {
+    if (!window.supabase) {
+        console.log('Supabase not available, using default branding');
+        applyBranding(defaultBranding);
+        return;
+    }
+
     try {
         const { data, error } = await window.supabase
             .from('app_settings')
             .select('*')
-            .eq('id', 1)
+            .eq('setting_key', 'branding')
             .single();
-        
+
         if (error && error.code !== 'PGRST116') {
-            console.warn('Error loading app settings:', error);
+            console.error('Error loading branding:', error);
+            applyBranding(defaultBranding);
+            return;
+        }
+
+        if (data && data.setting_value) {
+            currentBranding = { ...defaultBranding, ...data.setting_value };
+        } else {
+            currentBranding = { ...defaultBranding };
         }
         
-        if (data) {
-            currentAppSettings = {
-                app_name: data.app_name || defaultAppSettings.app_name,
-                app_full_name: data.app_full_name || defaultAppSettings.app_full_name,
-                app_logo_url: data.app_logo_url || null
-            };
-        }
-        
-        // Apply settings to UI
-        applyAppSettings();
-        return currentAppSettings;
+        applyBranding(currentBranding);
     } catch (err) {
-        console.warn('App settings table may not exist:', err);
-        applyAppSettings();
-        return currentAppSettings;
+        console.error('Error loading branding:', err);
+        applyBranding(defaultBranding);
     }
 }
 
-// Apply app settings to all UI elements
-function applyAppSettings() {
-    const { app_name, app_full_name, app_logo_url } = currentAppSettings;
-    
-    // Update document title
-    document.title = `${app_name} - ${app_full_name}`;
-    
-    // Update sidebar
-    const appNameEl = document.getElementById('appName');
-    if (appNameEl) appNameEl.textContent = app_name;
-    
+// Apply branding to the UI
+function applyBranding(branding) {
+    // Update CSS variables for colors
+    document.documentElement.style.setProperty('--app-primary-color', branding.app_primary_color);
+    document.documentElement.style.setProperty('--app-secondary-color', branding.app_secondary_color);
+
     // Update sidebar logo
-    const appLogoImg = document.getElementById('appLogoImg');
-    const appLogoDefault = document.getElementById('appLogoDefault');
-    if (app_logo_url) {
-        if (appLogoImg) {
-            appLogoImg.src = app_logo_url;
-            appLogoImg.style.display = 'block';
+    const sidebarLogoImg = document.getElementById('sidebarLogoImg');
+    const sidebarLogoDefault = document.getElementById('sidebarLogoDefault');
+    const sidebarAppName = document.getElementById('sidebarAppName');
+    
+    if (branding.app_logo_url) {
+        if (sidebarLogoImg) {
+            sidebarLogoImg.src = branding.app_logo_url;
+            sidebarLogoImg.style.display = 'block';
         }
-        if (appLogoDefault) appLogoDefault.style.display = 'none';
+        if (sidebarLogoDefault) sidebarLogoDefault.style.display = 'none';
     } else {
-        if (appLogoImg) appLogoImg.style.display = 'none';
-        if (appLogoDefault) {
-            appLogoDefault.style.display = 'flex';
-            appLogoDefault.innerHTML = app_name.substring(0, 3).split('').map(l => 
-                `<span class="logo-letter">${l}</span>`
-            ).join('');
+        if (sidebarLogoImg) sidebarLogoImg.style.display = 'none';
+        if (sidebarLogoDefault) {
+            sidebarLogoDefault.style.display = 'flex';
+            const logoText = sidebarLogoDefault.querySelector('.logo-text');
+            if (logoText) logoText.textContent = branding.app_logo_text || branding.app_short_name;
         }
     }
-    
+    if (sidebarAppName) sidebarAppName.textContent = branding.app_short_name;
+
     // Update header logo
     const headerLogoImg = document.getElementById('headerLogoImg');
     const headerLogoDefault = document.getElementById('headerLogoDefault');
-    if (app_logo_url) {
+    
+    if (branding.app_logo_url) {
         if (headerLogoImg) {
-            headerLogoImg.src = app_logo_url;
+            headerLogoImg.src = branding.app_logo_url;
             headerLogoImg.style.display = 'block';
         }
         if (headerLogoDefault) headerLogoDefault.style.display = 'none';
@@ -7667,367 +7707,426 @@ function applyAppSettings() {
         if (headerLogoImg) headerLogoImg.style.display = 'none';
         if (headerLogoDefault) {
             headerLogoDefault.style.display = 'flex';
-            headerLogoDefault.textContent = app_name.substring(0, 3);
+            const logoText = headerLogoDefault.querySelector('.logo-text');
+            if (logoText) logoText.textContent = branding.app_logo_text || branding.app_short_name;
         }
     }
-    
-    // Update login page
-    const loginAppName = document.getElementById('loginAppName');
-    const loginAppFullName = document.getElementById('loginAppFullName');
+
+    // Update login page branding
     const loginLogoImg = document.getElementById('loginLogoImg');
     const loginLogoDefault = document.getElementById('loginLogoDefault');
+    const loginAppName = document.getElementById('loginAppName');
+    const loginAppFullName = document.getElementById('loginAppFullName');
+    const loginLogoText = document.getElementById('loginLogoText');
     
-    if (loginAppName) loginAppName.textContent = app_name;
-    if (loginAppFullName) loginAppFullName.textContent = app_full_name;
-    
-    if (app_logo_url) {
+    if (branding.app_logo_url) {
         if (loginLogoImg) {
-            loginLogoImg.src = app_logo_url;
+            loginLogoImg.src = branding.app_logo_url;
             loginLogoImg.style.display = 'block';
         }
         if (loginLogoDefault) loginLogoDefault.style.display = 'none';
     } else {
         if (loginLogoImg) loginLogoImg.style.display = 'none';
-        if (loginLogoDefault) {
-            loginLogoDefault.style.display = 'flex';
-            loginLogoDefault.innerHTML = app_name.substring(0, 3).split('').map(l => 
-                `<span class="login-logo-letter">${l}</span>`
-            ).join('');
-        }
+        if (loginLogoDefault) loginLogoDefault.style.display = 'flex';
+        if (loginLogoText) loginLogoText.textContent = branding.app_logo_text || branding.app_short_name;
     }
+    if (loginAppName) loginAppName.textContent = branding.app_short_name;
+    if (loginAppFullName) loginAppFullName.textContent = branding.app_full_name;
+
+    // Update page title
+    document.title = `${branding.app_short_name} - ${branding.app_full_name}`;
+    
+    // Update settings page display
+    const currentAppNameDisplay = document.getElementById('currentAppNameDisplay');
+    if (currentAppNameDisplay) currentAppNameDisplay.textContent = branding.app_short_name;
 }
 
-// Update preview in settings page
-function updateAppPreview() {
-    const appNameInput = document.getElementById('customAppName');
-    const appFullNameInput = document.getElementById('customAppFullName');
+// Load branding settings into the form
+function loadBrandingSettings() {
+    const shortNameInput = document.getElementById('appShortName');
+    const fullNameInput = document.getElementById('appFullName');
+    const logoUrlInput = document.getElementById('appLogoUrl');
+    const logoTextInput = document.getElementById('appLogoText');
+    const primaryColorInput = document.getElementById('appPrimaryColor');
+    const primaryColorTextInput = document.getElementById('appPrimaryColorText');
+    const secondaryColorInput = document.getElementById('appSecondaryColor');
+    const secondaryColorTextInput = document.getElementById('appSecondaryColorText');
+    const fileNameSpan = document.getElementById('logoFileName');
+    const removeLogoBtn = document.getElementById('removeLogoBtn');
+
+    if (shortNameInput) shortNameInput.value = currentBranding.app_short_name;
+    if (fullNameInput) fullNameInput.value = currentBranding.app_full_name;
+    if (logoUrlInput) logoUrlInput.value = currentBranding.app_logo_url || '';
+    if (logoTextInput) logoTextInput.value = currentBranding.app_logo_text || currentBranding.app_short_name;
+    if (primaryColorInput) primaryColorInput.value = currentBranding.app_primary_color;
+    if (primaryColorTextInput) primaryColorTextInput.value = currentBranding.app_primary_color;
+    if (secondaryColorInput) secondaryColorInput.value = currentBranding.app_secondary_color;
+    if (secondaryColorTextInput) secondaryColorTextInput.value = currentBranding.app_secondary_color;
+
+    // Update logo file display
+    if (currentBranding.app_logo_url) {
+        // Extract filename from URL
+        const urlParts = currentBranding.app_logo_url.split('/');
+        const fileName = urlParts[urlParts.length - 1] || 'Current logo';
+        if (fileNameSpan) fileNameSpan.textContent = fileName;
+        if (removeLogoBtn) removeLogoBtn.style.display = 'flex';
+    } else {
+        if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+        if (removeLogoBtn) removeLogoBtn.style.display = 'none';
+    }
+
+    // Update preview
+    updateBrandingPreview();
+}
+
+// Update branding preview
+function updateBrandingPreview() {
+    const shortName = document.getElementById('appShortName')?.value || 'DMS';
+    const fullName = document.getElementById('appFullName')?.value || 'Dhananjay Manufacturing System';
+    const logoUrl = document.getElementById('appLogoUrl')?.value || '';
+    const logoText = document.getElementById('appLogoText')?.value || shortName;
+    const primaryColor = document.getElementById('appPrimaryColor')?.value || '#0ea5e9';
+    const secondaryColor = document.getElementById('appSecondaryColor')?.value || '#6366f1';
+
+    const previewLogoImg = document.getElementById('previewLogoImg');
+    const previewLogoDefault = document.getElementById('previewLogoDefault');
+    const previewLogoText = document.getElementById('previewLogoText');
     const previewAppName = document.getElementById('previewAppName');
     const previewAppFullName = document.getElementById('previewAppFullName');
-    const previewLogoDefault = document.getElementById('previewLogoDefault');
-    
-    const name = appNameInput?.value || currentAppSettings.app_name;
-    const fullName = appFullNameInput?.value || currentAppSettings.app_full_name;
-    
-    if (previewAppName) previewAppName.textContent = name;
+
+    if (logoUrl) {
+        if (previewLogoImg) {
+            previewLogoImg.src = logoUrl;
+            previewLogoImg.style.display = 'block';
+        }
+        if (previewLogoDefault) previewLogoDefault.style.display = 'none';
+    } else {
+        if (previewLogoImg) previewLogoImg.style.display = 'none';
+        if (previewLogoDefault) {
+            previewLogoDefault.style.display = 'flex';
+            previewLogoDefault.style.background = `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`;
+        }
+        if (previewLogoText) previewLogoText.textContent = logoText.substring(0, 4);
+    }
+    if (previewAppName) previewAppName.textContent = shortName;
     if (previewAppFullName) previewAppFullName.textContent = fullName;
-    if (previewLogoDefault && !document.getElementById('previewLogoImg')?.src) {
-        previewLogoDefault.innerHTML = name.substring(0, 3).split('').map(l => 
-            `<span>${l}</span>`
-        ).join('');
-    }
 }
 
-// Save app settings to database
-async function saveAppSettings(settings) {
+// Save branding settings to Supabase
+async function saveBrandingSettings(e) {
+    e.preventDefault();
+    
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) {
+        showToast('Access denied. Admin privileges required.', 'error');
+        return;
+    }
+
+    const branding = {
+        app_short_name: document.getElementById('appShortName')?.value || 'DMS',
+        app_full_name: document.getElementById('appFullName')?.value || 'Dhananjay Manufacturing System',
+        app_logo_url: document.getElementById('appLogoUrl')?.value || '',
+        app_logo_text: document.getElementById('appLogoText')?.value || 'DMS',
+        app_primary_color: document.getElementById('appPrimaryColor')?.value || '#0ea5e9',
+        app_secondary_color: document.getElementById('appSecondaryColor')?.value || '#6366f1'
+    };
+
     try {
-        const isAdmin = await isCurrentUserAdmin();
-        if (!isAdmin) {
-            showToast('Admin privileges required to change settings', 'error');
-            return false;
-        }
-        
-        const { data, error } = await window.supabase
+        // Check if branding settings exist
+        const { data: existing } = await window.supabase
             .from('app_settings')
-            .upsert({
-                id: 1,
-                app_name: settings.app_name,
-                app_full_name: settings.app_full_name,
-                app_logo_url: settings.app_logo_url,
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'id' })
-            .select()
+            .select('id')
+            .eq('setting_key', 'branding')
             .single();
-        
-        if (error) throw error;
-        
-        currentAppSettings = {
-            app_name: data.app_name,
-            app_full_name: data.app_full_name,
-            app_logo_url: data.app_logo_url
-        };
-        
-        applyAppSettings();
-        showToast('App settings saved successfully!', 'success');
-        return true;
+
+        if (existing) {
+            // Update existing
+            const { error } = await window.supabase
+                .from('app_settings')
+                .update({ setting_value: branding, updated_at: new Date().toISOString() })
+                .eq('setting_key', 'branding');
+
+            if (error) throw error;
+        } else {
+            // Insert new
+            const { error } = await window.supabase
+                .from('app_settings')
+                .insert({ setting_key: 'branding', setting_value: branding });
+
+            if (error) throw error;
+        }
+
+        currentBranding = branding;
+        applyBranding(branding);
+        showToast('Branding settings saved successfully!', 'success');
     } catch (err) {
-        console.error('Error saving app settings:', err);
-        showToast('Failed to save settings. Please try again.', 'error');
-        return false;
+        console.error('Error saving branding:', err);
+        showToast('Failed to save branding settings: ' + err.message, 'error');
     }
 }
 
-// Upload logo to Supabase Storage
-async function uploadLogo(file) {
+// Reset branding to default
+function resetBranding() {
+    if (confirm('Are you sure you want to reset branding to default settings?')) {
+        currentBranding = { ...defaultBranding };
+        loadBrandingSettings();
+        applyBranding(defaultBranding);
+    }
+}
+
+// Load Settings page statistics
+async function loadSettingsPageStats() {
+    if (!window.supabase) return;
+    
     try {
-        if (file.size > 500 * 1024) {
-            showToast('Logo file must be less than 500KB', 'error');
-            return null;
-        }
+        // Load user count from profiles table
+        const { count: userCount } = await window.supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
         
-        const fileExt = file.name.split('.').pop();
-        const fileName = `app-logo-${Date.now()}.${fileExt}`;
-        const filePath = `logos/${fileName}`;
-        
+        const settingsUserCount = document.getElementById('settingsUserCount');
+        if (settingsUserCount) settingsUserCount.textContent = userCount || 0;
+    } catch (err) {
+        console.error('Error loading settings stats:', err);
+    }
+}
+
+// Upload logo file to Supabase Storage
+async function uploadLogoFile(file) {
+    if (!window.supabase) {
+        throw new Error('Supabase not available');
+    }
+
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+        throw new Error('File size exceeds 2MB limit');
+    }
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        throw new Error('Invalid file type. Allowed: PNG, JPG, SVG, WebP');
+    }
+
+    // Generate unique filename
+    const fileExt = file.name.split('.').pop();
+    const fileName = `logo_${Date.now()}.${fileExt}`;
+    const filePath = `branding/${fileName}`;
+
+    // Show progress
+    const progressContainer = document.getElementById('logoUploadProgress');
+    const progressFill = document.getElementById('logoProgressFill');
+    const progressText = document.getElementById('logoProgressText');
+    
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressFill) progressFill.style.width = '0%';
+    if (progressText) progressText.textContent = 'Uploading...';
+
+    try {
+        // Simulate progress (Supabase doesn't provide upload progress)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += 10;
+            if (progress <= 90 && progressFill) {
+                progressFill.style.width = `${progress}%`;
+            }
+        }, 100);
+
+        // Upload to Supabase Storage
         const { data, error } = await window.supabase.storage
             .from('app-assets')
             .upload(filePath, file, {
                 cacheControl: '3600',
                 upsert: true
             });
-        
-        if (error) throw error;
-        
+
+        clearInterval(progressInterval);
+
+        if (error) {
+            // If bucket doesn't exist error, provide helpful message
+            if (error.message.includes('bucket') || error.statusCode === 400) {
+                throw new Error('Storage bucket "app-assets" not found. Please create it in Supabase Storage.');
+            }
+            throw error;
+        }
+
         // Get public URL
         const { data: urlData } = window.supabase.storage
             .from('app-assets')
             .getPublicUrl(filePath);
-        
+
+        if (progressFill) progressFill.style.width = '100%';
+        if (progressText) progressText.textContent = 'Upload complete!';
+
+        // Hide progress after delay
+        setTimeout(() => {
+            if (progressContainer) progressContainer.style.display = 'none';
+        }, 1500);
+
         return urlData.publicUrl;
     } catch (err) {
-        console.error('Error uploading logo:', err);
-        showToast('Failed to upload logo. Storage may not be configured.', 'error');
-        return null;
+        if (progressContainer) progressContainer.style.display = 'none';
+        throw err;
     }
 }
 
-// Initialize Settings page
-function initializeSettingsPage() {
-    const appCustomizationForm = document.getElementById('appCustomizationForm');
-    const customAppName = document.getElementById('customAppName');
-    const customAppFullName = document.getElementById('customAppFullName');
-    const customAppLogo = document.getElementById('customAppLogo');
-    const logoUploadArea = document.getElementById('logoUploadArea');
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-    const uploadPreview = document.getElementById('uploadPreview');
-    const uploadPreviewImg = document.getElementById('uploadPreviewImg');
-    const removeLogoBtn = document.getElementById('removeLogoBtn');
-    const resetAppCustomization = document.getElementById('resetAppCustomization');
-    const goToUserManagement = document.getElementById('goToUserManagement');
-    const backToSettingsBtn = document.getElementById('backToSettingsBtn');
-    
-    let pendingLogoFile = null;
-    let pendingLogoUrl = null;
-    
-    // Live preview updates
-    if (customAppName) {
-        customAppName.addEventListener('input', updateAppPreview);
-    }
-    if (customAppFullName) {
-        customAppFullName.addEventListener('input', updateAppPreview);
-    }
-    
-    // Logo upload area click
-    if (logoUploadArea && customAppLogo) {
-        logoUploadArea.addEventListener('click', () => {
-            customAppLogo.click();
-        });
-        
-        // Drag and drop
-        logoUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            logoUploadArea.classList.add('drag-over');
-        });
-        
-        logoUploadArea.addEventListener('dragleave', () => {
-            logoUploadArea.classList.remove('drag-over');
-        });
-        
-        logoUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            logoUploadArea.classList.remove('drag-over');
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                handleLogoFile(files[0]);
-            }
-        });
-        
-        customAppLogo.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleLogoFile(e.target.files[0]);
-            }
-        });
-    }
-    
-    function handleLogoFile(file) {
-        if (!file.type.startsWith('image/')) {
-            showToast('Please select an image file', 'error');
-            return;
-        }
-        
-        if (file.size > 500 * 1024) {
-            showToast('Logo must be less than 500KB', 'error');
-            return;
-        }
-        
-        pendingLogoFile = file;
-        
-        // Preview
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            pendingLogoUrl = e.target.result;
-            if (uploadPreviewImg) uploadPreviewImg.src = pendingLogoUrl;
-            if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
-            if (uploadPreview) uploadPreview.style.display = 'inline-block';
-            
-            // Update preview
-            const previewLogoImg = document.getElementById('previewLogoImg');
-            const previewLogoDefault = document.getElementById('previewLogoDefault');
-            if (previewLogoImg) {
-                previewLogoImg.src = pendingLogoUrl;
-                previewLogoImg.style.display = 'block';
-            }
-            if (previewLogoDefault) previewLogoDefault.style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-    }
-    
-    // Remove logo
-    if (removeLogoBtn) {
-        removeLogoBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            pendingLogoFile = null;
-            pendingLogoUrl = null;
-            if (customAppLogo) customAppLogo.value = '';
-            if (uploadPlaceholder) uploadPlaceholder.style.display = 'flex';
-            if (uploadPreview) uploadPreview.style.display = 'none';
-            
-            // Reset preview
-            const previewLogoImg = document.getElementById('previewLogoImg');
-            const previewLogoDefault = document.getElementById('previewLogoDefault');
-            if (previewLogoImg) previewLogoImg.style.display = 'none';
-            if (previewLogoDefault) {
-                previewLogoDefault.style.display = 'flex';
-                updateAppPreview();
-            }
-        });
-    }
-    
-    // Reset to defaults
-    if (resetAppCustomization) {
-        resetAppCustomization.addEventListener('click', async () => {
-            if (confirm('Reset app customization to defaults?')) {
-                await saveAppSettings(defaultAppSettings);
-                populateSettingsForm();
-                pendingLogoFile = null;
-                pendingLogoUrl = null;
-                if (uploadPlaceholder) uploadPlaceholder.style.display = 'flex';
-                if (uploadPreview) uploadPreview.style.display = 'none';
-            }
-        });
-    }
-    
-    // Save form
-    if (appCustomizationForm) {
-        appCustomizationForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const saveBtn = document.getElementById('saveAppCustomization');
-            if (saveBtn) {
-                saveBtn.disabled = true;
-                saveBtn.innerHTML = '<span class="btn-icon">⏳</span> Saving...';
-            }
-            
-            try {
-                let logoUrl = currentAppSettings.app_logo_url;
-                
-                // Upload new logo if selected
-                if (pendingLogoFile) {
-                    const uploadedUrl = await uploadLogo(pendingLogoFile);
-                    if (uploadedUrl) {
-                        logoUrl = uploadedUrl;
-                    }
-                } else if (pendingLogoUrl === null && !uploadPreview?.style.display?.includes('none')) {
-                    // Keep current logo
-                } else if (!pendingLogoFile && uploadPreview?.style.display === 'none') {
-                    // Logo was removed
-                    logoUrl = null;
-                }
-                
-                await saveAppSettings({
-                    app_name: customAppName?.value || defaultAppSettings.app_name,
-                    app_full_name: customAppFullName?.value || defaultAppSettings.app_full_name,
-                    app_logo_url: logoUrl
-                });
-                
-                pendingLogoFile = null;
-            } finally {
-                if (saveBtn) {
-                    saveBtn.disabled = false;
-                    saveBtn.innerHTML = '<span class="btn-icon">💾</span> Save Changes';
-                }
-            }
-        });
-    }
-    
-    // Go to User Management
-    if (goToUserManagement) {
-        goToUserManagement.addEventListener('click', () => {
-            navigateToHash('#settings/user-management', true);
-        });
-    }
-    
-    // Back to Settings
-    if (backToSettingsBtn) {
-        backToSettingsBtn.addEventListener('click', () => {
-            navigateToHash('#settings', true);
-        });
-    }
-}
+// Delete old logo from Supabase Storage
+async function deleteOldLogo(logoUrl) {
+    if (!window.supabase || !logoUrl) return;
 
-// Populate settings form with current values
-function populateSettingsForm() {
-    const customAppName = document.getElementById('customAppName');
-    const customAppFullName = document.getElementById('customAppFullName');
-    const uploadPreview = document.getElementById('uploadPreview');
-    const uploadPlaceholder = document.getElementById('uploadPlaceholder');
-    const uploadPreviewImg = document.getElementById('uploadPreviewImg');
-    const previewLogoImg = document.getElementById('previewLogoImg');
-    const previewLogoDefault = document.getElementById('previewLogoDefault');
-    
-    if (customAppName) customAppName.value = currentAppSettings.app_name;
-    if (customAppFullName) customAppFullName.value = currentAppSettings.app_full_name;
-    
-    if (currentAppSettings.app_logo_url) {
-        if (uploadPreviewImg) uploadPreviewImg.src = currentAppSettings.app_logo_url;
-        if (uploadPlaceholder) uploadPlaceholder.style.display = 'none';
-        if (uploadPreview) uploadPreview.style.display = 'inline-block';
-        if (previewLogoImg) {
-            previewLogoImg.src = currentAppSettings.app_logo_url;
-            previewLogoImg.style.display = 'block';
-        }
-        if (previewLogoDefault) previewLogoDefault.style.display = 'none';
-    } else {
-        if (uploadPlaceholder) uploadPlaceholder.style.display = 'flex';
-        if (uploadPreview) uploadPreview.style.display = 'none';
-        if (previewLogoImg) previewLogoImg.style.display = 'none';
-        if (previewLogoDefault) previewLogoDefault.style.display = 'flex';
-    }
-    
-    updateAppPreview();
-}
-
-// Load settings page data
-async function loadSettingsPageData() {
-    // Load current settings
-    await loadAppSettings();
-    populateSettingsForm();
-    
-    // Load user count for the card
     try {
-        const { count, error } = await window.supabase
-            .from('user_profiles')
-            .select('*', { count: 'exact', head: true });
+        // Extract file path from URL
+        const urlParts = logoUrl.split('/app-assets/');
+        if (urlParts.length < 2) return;
         
-        const userCountEl = document.getElementById('settingsUserCount');
-        if (userCountEl) {
-            userCountEl.textContent = error ? '-' : (count || 0);
-        }
+        const filePath = urlParts[1];
+        
+        await window.supabase.storage
+            .from('app-assets')
+            .remove([filePath]);
     } catch (err) {
-        console.warn('Error loading user count:', err);
+        console.warn('Could not delete old logo:', err);
     }
 }
 
-// Load app settings on page load (for login page)
+// Handle logo file selection
+async function handleLogoFileSelect(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fileNameSpan = document.getElementById('logoFileName');
+    const removeBtn = document.getElementById('removeLogoBtn');
+    const logoUrlInput = document.getElementById('appLogoUrl');
+
+    try {
+        // Update file name display
+        if (fileNameSpan) fileNameSpan.textContent = file.name;
+
+        // Upload file
+        const logoUrl = await uploadLogoFile(file);
+
+        // Delete old logo if exists
+        if (currentBranding.app_logo_url) {
+            await deleteOldLogo(currentBranding.app_logo_url);
+        }
+
+        // Update hidden input
+        if (logoUrlInput) logoUrlInput.value = logoUrl;
+
+        // Show remove button
+        if (removeBtn) removeBtn.style.display = 'flex';
+
+        // Update preview
+        updateBrandingPreview();
+
+        showToast('Logo uploaded successfully!', 'success');
+    } catch (err) {
+        console.error('Error uploading logo:', err);
+        showToast('Failed to upload logo: ' + err.message, 'error');
+        
+        // Reset file input
+        e.target.value = '';
+        if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+    }
+}
+
+// Remove uploaded logo
+async function removeUploadedLogo() {
+    const logoUrlInput = document.getElementById('appLogoUrl');
+    const fileInput = document.getElementById('appLogoFile');
+    const fileNameSpan = document.getElementById('logoFileName');
+    const removeBtn = document.getElementById('removeLogoBtn');
+
+    // Delete from storage if it's our uploaded file
+    const currentUrl = logoUrlInput?.value || currentBranding.app_logo_url;
+    if (currentUrl && currentUrl.includes('app-assets')) {
+        await deleteOldLogo(currentUrl);
+    }
+
+    // Clear inputs
+    if (logoUrlInput) logoUrlInput.value = '';
+    if (fileInput) fileInput.value = '';
+    if (fileNameSpan) fileNameSpan.textContent = 'No file chosen';
+    if (removeBtn) removeBtn.style.display = 'none';
+
+    // Update preview
+    updateBrandingPreview();
+}
+
+// Initialize branding form
+function initializeBrandingForm() {
+    const brandingForm = document.getElementById('brandingForm');
+    const resetBrandingBtn = document.getElementById('resetBrandingBtn');
+    const shortNameInput = document.getElementById('appShortName');
+    const fullNameInput = document.getElementById('appFullName');
+    const logoFileInput = document.getElementById('appLogoFile');
+    const logoUrlInput = document.getElementById('appLogoUrl');
+    const logoTextInput = document.getElementById('appLogoText');
+    const primaryColorInput = document.getElementById('appPrimaryColor');
+    const primaryColorTextInput = document.getElementById('appPrimaryColorText');
+    const secondaryColorInput = document.getElementById('appSecondaryColor');
+    const secondaryColorTextInput = document.getElementById('appSecondaryColorText');
+    const removeLogoBtn = document.getElementById('removeLogoBtn');
+
+    if (brandingForm) {
+        brandingForm.addEventListener('submit', saveBrandingSettings);
+    }
+
+    if (resetBrandingBtn) {
+        resetBrandingBtn.addEventListener('click', resetBranding);
+    }
+
+    // Logo file upload handler
+    if (logoFileInput) {
+        logoFileInput.addEventListener('change', handleLogoFileSelect);
+    }
+
+    // Remove logo button
+    if (removeLogoBtn) {
+        removeLogoBtn.addEventListener('click', removeUploadedLogo);
+    }
+
+    // Live preview updates
+    [shortNameInput, fullNameInput, logoTextInput].forEach(input => {
+        if (input) {
+            input.addEventListener('input', updateBrandingPreview);
+        }
+    });
+
+    // Color input synchronization
+    if (primaryColorInput && primaryColorTextInput) {
+        primaryColorInput.addEventListener('input', (e) => {
+            primaryColorTextInput.value = e.target.value;
+            updateBrandingPreview();
+        });
+        primaryColorTextInput.addEventListener('input', (e) => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                primaryColorInput.value = e.target.value;
+                updateBrandingPreview();
+            }
+        });
+    }
+
+    if (secondaryColorInput && secondaryColorTextInput) {
+        secondaryColorInput.addEventListener('input', (e) => {
+            secondaryColorTextInput.value = e.target.value;
+            updateBrandingPreview();
+        });
+        secondaryColorTextInput.addEventListener('input', (e) => {
+            if (/^#[0-9A-Fa-f]{6}$/.test(e.target.value)) {
+                secondaryColorInput.value = e.target.value;
+                updateBrandingPreview();
+            }
+        });
+    }
+}
+
+// Initialize branding on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
-    loadAppSettings();
+    // Load branding first to apply it to the UI
+    loadAppBranding();
+    
+    // Initialize branding form handlers
+    initializeBrandingForm();
 });
