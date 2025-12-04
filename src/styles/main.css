@@ -1,0 +1,7 @@
+/* Main Stylesheet - Imports all CSS modules */
+@import './variables.css';
+@import './base.css';
+
+/* Import the existing styles - will be refactored into modules later */
+/* For now, keeping the full CSS file for compatibility */
+

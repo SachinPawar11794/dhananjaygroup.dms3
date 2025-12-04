@@ -1,0 +1,1616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Machine Settings Management</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Note: style.css is kept for now. Will be migrated to src/styles/main.css in future -->
+</head>
+
+<body>
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2 class="sidebar-logo">
+                <span class="logo-icon">⚙️</span>
+                IoT Manager
+            </h2>
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar">
+                <span>&times;</span>
+            </button>
+        </div>
+        <nav class="sidebar-nav">
+            <ul class="nav-menu">
+                <!-- Top-level modules only -->
+                <li>
+                    <a href="#" class="nav-item nav-module" data-module="task-manager">
+                        <span class="nav-icon">✅</span>
+                        <span class="nav-text">Task Manager</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#" class="nav-item nav-module active" data-module="pms">
+                        <span class="nav-icon">🏭</span>
+                        <span class="nav-text">PMS</span>
+                    </a>
+                </li>
+                <li id="userManagementNavItem" style="display: none;">
+                    <a href="#" class="nav-item nav-module" data-module="user-management" id="userManagementNav">
+                        <span class="nav-icon">👥</span>
+                        <span class="nav-text">User Management</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </aside>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
+                        <span>☰</span>
+                    </button>
+                    <div class="header-title-group">
+                        <h1 class="logo">
+                            <span class="logo-icon">⚙️</span>
+                            <span id="pageTitle">PMS</span>
+                        </h1>
+                        <div id="pagePath" class="page-path breadcrumb">
+                            <span class="breadcrumb-item" data-hash="#pms/dashboard">PMS</span>
+                            <span class="breadcrumb-separator">/</span>
+                            <span class="breadcrumb-item active">Dashboard</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <div class="user-menu" id="userMenu" style="display: none;">
+                        <span class="user-email" id="userEmail"></span>
+                        <button class="btn-secondary" id="logoutBtn">Logout</button>
+                    </div>
+                    <button class="btn-primary" id="loginBtn" style="display: none;">Login</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- PMS Dashboard Page -->
+            <div id="pmsDashboardPage" class="page active">
+                <div class="content-header">
+                    <h2>Production Management System</h2>
+                    <p class="subtitle">Overview and quick access to all PMS modules</p>
+                </div>
+
+                <!-- Dashboard Cards Grid -->
+                <div class="dashboard-cards-grid">
+                    <!-- Machine Settings Card -->
+                    <div class="dashboard-card" data-page="settings">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <span class="card-icon">⚙️</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Machine Settings</h3>
+                            <p class="dashboard-card-description">Configure and manage machine settings</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Settings:</span>
+                                <span class="dashboard-card-stat-value" id="pmsSettingsCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- Process Master Card -->
+                    <div class="dashboard-card" data-page="process-master">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <span class="card-icon">📋</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Process Master</h3>
+                            <p class="dashboard-card-description">Manage process master data</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Processes:</span>
+                                <span class="dashboard-card-stat-value" id="pmsProcessCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- Work Center Master Card -->
+                    <div class="dashboard-card" data-page="workcenter-master">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                            <span class="card-icon">🏭</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Work Center Master</h3>
+                            <p class="dashboard-card-description">Manage machines and work centers</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Machines:</span>
+                                <span class="dashboard-card-stat-value" id="pmsMachineCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- IoT Data Card -->
+                    <div class="dashboard-card" data-page="iot-data">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
+                            <span class="card-icon">📡</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">IoT Data</h3>
+                            <p class="dashboard-card-description">View real-time IoT device data</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Recent Records:</span>
+                                <span class="dashboard-card-stat-value" id="pmsIoTCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- Shift Schedule Card -->
+                    <div class="dashboard-card" data-page="shift-schedule">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+                            <span class="card-icon">⏰</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Shift Schedule</h3>
+                            <p class="dashboard-card-description">Manage shift-wise available time and planned downtime</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Entries:</span>
+                                <span class="dashboard-card-stat-value" id="pmsShiftScheduleCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- Loss Reason Card -->
+                    <div class="dashboard-card" data-page="loss-reason">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);">
+                            <span class="card-icon">⚠️</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Loss Reason</h3>
+                            <p class="dashboard-card-description">Manage loss reasons for production tracking</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Reasons:</span>
+                                <span class="dashboard-card-stat-value" id="pmsLossReasonCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                    <!-- Hourly Report Card -->
+                    <div class="dashboard-card" data-page="hourly-report">
+                        <div class="dashboard-card-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                            <span class="card-icon">📊</span>
+                        </div>
+                        <div class="dashboard-card-content">
+                            <h3 class="dashboard-card-title">Hourly Report</h3>
+                            <p class="dashboard-card-description">View and generate hourly production reports</p>
+                            <div class="dashboard-card-stats">
+                                <span class="dashboard-card-stat-label">Total Reports:</span>
+                                <span class="dashboard-card-stat-value" id="pmsHourlyReportCount">-</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-card-arrow">→</div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Machine Settings Page -->
+            <div id="settingsPage" class="page">
+                <div class="content-header">
+                    <h2>Machine Settings Overview</h2>
+                    <p class="subtitle">View and manage all machine settings configurations</p>
+                </div>
+
+                <!-- Add New Settings button moved below heading -->
+                <button class="btn-primary" id="openFormBtn" style="margin-bottom: 1.5rem; display: none;">
+                    <span class="btn-icon">+</span>
+                    Add New Settings
+                </button>
+
+                <!-- Settings Table Container -->
+                <div class="table-container">
+                    <div id="loadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading settings...</span>
+                    </div>
+                    <table id="settingsTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Timestamp</th>
+                                <th>Plant</th>
+                                <th>Machine</th>
+                                <th>Part No.</th>
+                                <th>Part Name</th>
+                                <th>Operation</th>
+                                <th>Cycle Time</th>
+                                <th>Part Count/Cycle</th>
+                                <th>Inspection</th>
+                                <th>Cell Name</th>
+                                <th>Cell Leader</th>
+                                <th>Workstations</th>
+                                <th>Mandays</th>
+                                <th>Tool Code</th>
+                                <th>Operator Code</th>
+                                <th>Loss Reason</th>
+                                <th>Target Count</th>
+                                <th>Actual Count</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settingsTableBody">
+                        </tbody>
+                    </table>
+                    <div id="errorMessage" class="error-message" style="display: none;"></div>
+                    <div id="emptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">📋</div>
+                        <h3>No settings found</h3>
+                        <p>Get started by adding your first machine settings</p>
+                        <button class="btn-primary" onclick="document.getElementById('openFormBtn').click()">
+                            Add Settings
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="settingsPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="settingsPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="settingsPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="settingsPageNumbers"></div>
+                            <button class="pagination-btn" id="settingsNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="settingsPageSize" class="pagination-select">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Process Master Page -->
+            <div id="processMasterPage" class="page">
+                <div class="content-header">
+                    <h2>Process Master</h2>
+                    <p class="subtitle">View and manage process master data</p>
+                </div>
+                <button class="btn-primary" id="openProcessMasterFormBtn" style="margin-bottom: 1.5rem;">
+                    <span class="btn-icon">+</span>
+                    Add New Process
+                </button>
+
+                <!-- Search Bar for Process Master -->
+                <div class="search-container" style="margin-bottom: 1.5rem;">
+                    <input type="text" id="processMasterSearch" class="search-input" placeholder="Search by Plant, Part No., Part Name, Operation, Machine, Cell Name..." />
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <!-- Process Master Table Container -->
+                <div class="table-container">
+                    <div id="processLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading process master data...</span>
+                    </div>
+                    <table id="processMasterTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Sr. No.</th>
+                                <th>Plant</th>
+                                <th>Cell Name</th>
+                                <th>SAP Code/ Part No.</th>
+                                <th>Part Name</th>
+                                <th>Operation</th>
+                                <th>Cycle Time per Piece</th>
+                                <th>No. of Cavities in Tool</th>
+                                <th>Machine</th>
+                                <th>No. of Workstations</th>
+                                <th>Inspection Applicability</th>
+                                <th>Mandays</th>
+                                <th>Cell Leader</th>
+                                <th>Average Setup & Change Over Time (Minutes)</th>
+                                <th>Batch Qty.</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processMasterTableBody">
+                        </tbody>
+                    </table>
+                    <div id="processErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="processEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">📋</div>
+                        <h3>No process master data found</h3>
+                        <p>Get started by adding your first process master entry</p>
+                        <button class="btn-primary" onclick="document.getElementById('openProcessMasterFormBtn').click()">
+                            Add Process
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="processPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="processPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="processPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="processPageNumbers"></div>
+                            <button class="pagination-btn" id="processNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="processPageSize" class="pagination-select">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work Center Master Page -->
+            <div id="workcenterMasterPage" class="page">
+                <div class="content-header">
+                    <h2>Work Center Master</h2>
+                    <p class="subtitle">View and manage machine/work center master data</p>
+                </div>
+                <button class="btn-primary" id="openWorkCenterFormBtn" style="margin-bottom: 1.5rem;">
+                    <span class="btn-icon">+</span>
+                    Add New Machine
+                </button>
+
+                <!-- Search Bar for Work Center Master -->
+                <div class="search-container" style="margin-bottom: 1.5rem;">
+                    <input type="text" id="workcenterMasterSearch" class="search-input" placeholder="Search by Machine, Plant, ID..." />
+                    <span class="search-icon">🔍</span>
+                </div>
+
+                <!-- Work Center Master Table Container -->
+                <div class="table-container">
+                    <div id="workcenterLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading work center master data...</span>
+                    </div>
+                    <table id="workcenterMasterTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Machine</th>
+                                <th>Plant</th>
+                                <th>IoT Enabled</th>
+                                <th>Created At</th>
+                                <th>Updated At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workcenterMasterTableBody">
+                        </tbody>
+                    </table>
+                    <div id="workcenterErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="workcenterEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">🏭</div>
+                        <h3>No machines found</h3>
+                        <p>Get started by adding your first machine</p>
+                        <button class="btn-primary" onclick="document.getElementById('openWorkCenterFormBtn').click()">
+                            Add Machine
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="workcenterPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="workcenterPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="workcenterPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="workcenterPageNumbers"></div>
+                            <button class="pagination-btn" id="workcenterNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="workcenterPageSize" class="pagination-select">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IoT Data Page -->
+            <div id="iotDataPage" class="page">
+                <div class="content-header">
+                    <h2>IoT Data Collection</h2>
+                    <p class="subtitle">View data collected from ESP32 IoT devices</p>
+                </div>
+
+                <!-- IoT Data Filters -->
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label for="iotPlantFilter">Plant</label>
+                        <select id="iotPlantFilter" class="filter-select">
+                            <option value="">All Plants</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="iotMachineFilter">Machine</label>
+                        <select id="iotMachineFilter" class="filter-select">
+                            <option value="">All Machines</option>
+                        </select>
+                    </div>
+                    <div class="filter-group filter-group-actions">
+                        <button type="button" id="iotClearFiltersBtn" class="btn-secondary">Clear Filters</button>
+                    </div>
+                </div>
+
+                <!-- IoT Data Table Container -->
+                <div class="table-container">
+                    <div id="iotDataLoadingMessage" class="loading-message">
+                        Loading IoT data...
+                    </div>
+                    <table id="iotDataTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Plant</th>
+                                <th>Part No.</th>
+                                <th>Part Name</th>
+                                <th>Operation</th>
+                                <th>Cycle Time</th>
+                                <th>Part Count Per Cycle</th>
+                                <th>Inspection Applicability</th>
+                                <th>Cell Name</th>
+                                <th>Cell Leader</th>
+                                <th>Work Stations</th>
+                                <th>Mandays</th>
+                                <th>Tool Code</th>
+                                <th>Operator Code</th>
+                                <th>Loss Reasons</th>
+                                <th>Machine No.</th>
+                                <th>Value</th>
+                                <th>Archive Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="iotDataTableBody">
+                            <!-- Data will be populated by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination for IoT Data -->
+                <div class="pagination" id="iotDataPagination" style="display: none;">
+                    <div class="pagination-info">
+                        <span id="iotDataPaginationInfo">Showing 0-0 of 0 entries</span>
+                    </div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn" id="iotDataPrevBtn" disabled>Previous</button>
+                        <div class="pagination-pages" id="iotDataPageNumbers"></div>
+                        <button class="pagination-btn" id="iotDataNextBtn" disabled>Next</button>
+                    </div>
+                    <div class="pagination-size">
+                        <label for="iotDataPageSize">Show:</label>
+                        <select id="iotDataPageSize" class="pagination-select">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shift Schedule Page -->
+            <div id="shiftSchedulePage" class="page">
+                <div class="content-header">
+                    <h2>Shift Schedule</h2>
+                    <p class="subtitle">Manage shift-wise available time and planned downtime</p>
+                </div>
+
+                <button class="btn-primary" id="openShiftScheduleFormBtn" style="margin-bottom: 1.5rem;">
+                    <span class="btn-icon">+</span>
+                    Add New Schedule Entry
+                </button>
+
+                <!-- Filters for Shift Schedule -->
+                <div class="filters-row" style="margin-bottom: 1.5rem;">
+                    <div class="filter-group">
+                        <label for="shiftSchedulePlantFilter">Plant</label>
+                        <select id="shiftSchedulePlantFilter" class="filter-select">
+                            <option value="">All Plants</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="shiftScheduleShiftFilter">Shift</label>
+                        <select id="shiftScheduleShiftFilter" class="filter-select">
+                            <option value="">All Shifts</option>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div class="filter-group-actions">
+                        <button class="btn-secondary" id="clearShiftScheduleFiltersBtn">Clear Filters</button>
+                    </div>
+                </div>
+
+                <!-- Shift Schedule Table Container -->
+                <div class="table-container">
+                    <div id="shiftScheduleLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading shift schedule...</span>
+                    </div>
+                    <table id="shiftScheduleTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Plant</th>
+                                <th>Shift</th>
+                                <th>Time</th>
+                                <th>Available Time (min)</th>
+                                <th>Planned Down Time (min)</th>
+                                <th>Remark</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="shiftScheduleTableBody">
+                        </tbody>
+                    </table>
+                    <div id="shiftScheduleErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="shiftScheduleEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">⏰</div>
+                        <h3>No shift schedule found</h3>
+                        <p>Get started by adding your first shift schedule entry</p>
+                        <button class="btn-primary" onclick="document.getElementById('openShiftScheduleFormBtn').click()">
+                            Add Schedule Entry
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="shiftSchedulePagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="shiftSchedulePaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="shiftSchedulePrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="shiftSchedulePageNumbers"></div>
+                            <button class="pagination-btn" id="shiftScheduleNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="shiftSchedulePageSize" class="pagination-select">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Loss Reason Page -->
+            <div id="lossReasonPage" class="page">
+                <div class="content-header">
+                    <h2>Loss Reason</h2>
+                    <p class="subtitle">Manage loss reasons for production tracking</p>
+                </div>
+
+                <button class="btn-primary" id="openLossReasonFormBtn" style="margin-bottom: 1.5rem;">
+                    <span class="btn-icon">+</span>
+                    Add New Loss Reason
+                </button>
+
+                <!-- Loss Reason Table Container -->
+                <div class="table-container">
+                    <div id="lossReasonLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading loss reasons...</span>
+                    </div>
+                    <table id="lossReasonTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Loss Reason</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lossReasonTableBody">
+                        </tbody>
+                    </table>
+                    <div id="lossReasonErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="lossReasonEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">⚠️</div>
+                        <h3>No loss reasons found</h3>
+                        <p>Get started by adding your first loss reason</p>
+                        <button class="btn-primary" onclick="document.getElementById('openLossReasonFormBtn').click()">
+                            Add Loss Reason
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="lossReasonPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="lossReasonPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="lossReasonPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="lossReasonPageNumbers"></div>
+                            <button class="pagination-btn" id="lossReasonNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="lossReasonPageSize" class="pagination-select">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hourly Report Page -->
+            <div id="hourlyReportPage" class="page">
+                <div class="content-header">
+                    <h2>Hourly Report</h2>
+                    <p class="subtitle">View and generate hourly production reports</p>
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
+                    <button class="btn-primary" id="generateHourlyReportBtn" style="flex-shrink: 0;">
+                        <span class="btn-icon">📊</span>
+                        Generate Report
+                    </button>
+                    <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                        <button class="btn-secondary" id="archiveOldReportsBtn" title="Archive old reports" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                            <span class="btn-icon">📦</span>
+                            Archive
+                        </button>
+                        <button class="btn-secondary" id="archiveConfigBtn" title="Archive settings" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                            <span class="btn-icon">⚙️</span>
+                            Settings
+                        </button>
+                    </div>
+                    <div class="filter-group" style="min-width: 180px; flex: 0 0 auto;">
+                        <label for="hourlyReportDateFilter" style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Date</label>
+                        <input type="date" id="hourlyReportDateFilter" class="filter-select" style="padding: 0.5rem; font-size: 0.875rem;">
+                    </div>
+                    <div class="filter-group" style="min-width: 140px; flex: 0 0 auto;">
+                        <label for="hourlyReportShiftFilter" style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Shift</label>
+                        <select id="hourlyReportShiftFilter" class="filter-select" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <option value="">All Shifts</option>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+                    <div class="filter-group" style="min-width: auto; flex: 0 0 auto; display: flex; align-items: center; gap: 0.5rem; padding-top: 1.5rem;">
+                        <input type="checkbox" id="hourlyReportHideArchived" style="width: auto; margin: 0; cursor: pointer;">
+                        <label for="hourlyReportHideArchived" style="font-size: 0.8125rem; margin: 0; cursor: pointer; white-space: nowrap;">Hide Archived</label>
+                    </div>
+                    <button class="btn-secondary" id="clearHourlyReportFiltersBtn" style="padding: 0.5rem 0.75rem; font-size: 0.875rem; align-self: flex-end;">Clear</button>
+                </div>
+
+                <!-- Hourly Report Table Container -->
+                <div class="table-container">
+                    <div id="hourlyReportLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading hourly reports...</span>
+                    </div>
+                    <table id="hourlyReportTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Plant</th>
+                                <th>Machine Name</th>
+                                <th>Sr No</th>
+                                <th>Shift</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Operator</th>
+                                <th>Part No.</th>
+                                <th>Part Name</th>
+                                <th>Operation</th>
+                                <th>Cycle Time (Sec)</th>
+                                <th>Hourly Target</th>
+                                <th>Total Produced Qty.</th>
+                                <th>OK Qty.</th>
+                                <th>Rej. Qty.</th>
+                                <th>Rew. Qty.</th>
+                                <th>Defect Type</th>
+                                <th>Available Time (Min)</th>
+                                <th>Operating Time (Min)</th>
+                                <th>Total Down Time (Min)</th>
+                                <th>Loss Reasons</th>
+                                <th>Cell Name</th>
+                                <th>Cell Leader</th>
+                                <th>Archive Status</th>
+                                <th>Custom Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="hourlyReportTableBody">
+                        </tbody>
+                    </table>
+                    <div id="hourlyReportErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="hourlyReportEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">📊</div>
+                        <h3>No hourly reports found</h3>
+                        <p>Generate your first hourly report to get started</p>
+                        <button class="btn-primary" onclick="document.getElementById('generateHourlyReportBtn').click()">
+                            Generate Report
+                        </button>
+                    </div>
+                    <!-- Pagination Controls -->
+                    <div id="hourlyReportPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="hourlyReportPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="hourlyReportPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="hourlyReportPageNumbers"></div>
+                            <button class="pagination-btn" id="hourlyReportNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="hourlyReportPageSize" class="pagination-select">
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archive Configuration Modal -->
+            <div id="archiveConfigModal" class="modal-overlay" style="display: none;">
+                <div class="modal-content" style="max-width: 550px;">
+                    <div class="modal-header">
+                        <h2>Archive Configuration</h2>
+                        <button class="modal-close" onclick="closeArchiveConfigModal()">&times;</button>
+                    </div>
+                    <form id="archiveConfigForm" class="settings-form" onsubmit="saveArchiveConfig(event)" style="padding: 1.25rem;">
+                        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label for="archiveFrequencyDays">
+                                    Archive Frequency (Days)
+                                    <span class="required">*</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="archiveFrequencyDays" 
+                                    name="archiveFrequencyDays" 
+                                    min="1" 
+                                    max="365" 
+                                    required
+                                    class="form-input"
+                                    placeholder="e.g., 8"
+                                >
+                                <small class="form-help" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Days before archiving</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="autoArchiveEnabled" style="margin-bottom: 0.5rem;">
+                                    <input 
+                                        type="checkbox" 
+                                        id="autoArchiveEnabled" 
+                                        name="autoArchiveEnabled"
+                                        style="width: auto; margin-right: 6px;"
+                                    >
+                                    Enable Auto Archiving
+                                </label>
+                                <small class="form-help" style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 0.25rem;">Runs automatically at scheduled time</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="archiveTimeHour">
+                                    Archive Hour (UTC)
+                                    <span class="required">*</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="archiveTimeHour" 
+                                    name="archiveTimeHour" 
+                                    min="0" 
+                                    max="23" 
+                                    required
+                                    class="form-input"
+                                    placeholder="0-23"
+                                >
+                                <small class="form-help" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">24-hour format</small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="archiveTimeMinute">
+                                    Archive Minute
+                                    <span class="required">*</span>
+                                </label>
+                                <input 
+                                    type="number" 
+                                    id="archiveTimeMinute" 
+                                    name="archiveTimeMinute" 
+                                    min="0" 
+                                    max="59" 
+                                    required
+                                    class="form-input"
+                                    placeholder="0-59"
+                                >
+                                <small class="form-help" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Minute of hour</small>
+                            </div>
+
+                            <div class="form-group" style="grid-column: 1 / -1;">
+                                <label for="archiveTimezone">
+                                    Timezone (Reference)
+                                </label>
+                                <select id="archiveTimezone" name="archiveTimezone" class="form-input">
+                                    <option value="UTC">UTC</option>
+                                    <option value="America/New_York">America/New_York (EST)</option>
+                                    <option value="America/Chicago">America/Chicago (CST)</option>
+                                    <option value="America/Denver">America/Denver (MST)</option>
+                                    <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+                                    <option value="Europe/London">Europe/London (GMT)</option>
+                                    <option value="Europe/Paris">Europe/Paris (CET)</option>
+                                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                                </select>
+                                <small class="form-help" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.25rem;">Note: Cron runs in UTC</small>
+                            </div>
+                        </div>
+
+                        <div id="archiveConfigStatus" style="margin: 1rem 0; padding: 0.75rem; border-radius: 6px; display: none; font-size: 0.875rem;"></div>
+
+                        <div class="form-actions" style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                            <button type="button" class="btn-secondary" onclick="closeArchiveConfigModal()" style="padding: 0.5rem 1rem;">Cancel</button>
+                            <button type="submit" class="btn-primary" id="saveArchiveConfigBtn" style="padding: 0.5rem 1rem;">
+                                <span class="btn-icon">💾</span>
+                                Save
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Task Manager Page -->
+            <div id="taskManagerPage" class="page">
+                <div class="content-header">
+                    <h2>Task Manager (Employee Checklist)</h2>
+                    <p class="subtitle">Plan, track, and complete routine tasks across plants</p>
+                </div>
+
+                <div class="task-header-row">
+                    <button class="btn-primary" id="openTaskFormBtn">
+                        <span class="btn-icon">+</span>
+                        Add New Task
+                    </button>
+                    <div class="task-summary-cards">
+                        <div class="task-summary-card">
+                            <div class="task-summary-label">Total Tasks</div>
+                            <div class="task-summary-value" id="taskTotalCount">-</div>
+                        </div>
+                        <div class="task-summary-card">
+                            <div class="task-summary-label">Open</div>
+                            <div class="task-summary-value" id="taskOpenCount">-</div>
+                        </div>
+                        <div class="task-summary-card">
+                            <div class="task-summary-label">Overdue</div>
+                            <div class="task-summary-value" id="taskOverdueCount">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="task-filters-row">
+                    <div class="filter-group">
+                        <label for="taskPlantFilter">Plant</label>
+                        <select id="taskPlantFilter" class="filter-select">
+                            <option value="">All Plants</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="taskFrequencyFilter">Frequency</label>
+                        <select id="taskFrequencyFilter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="One-time">One-time</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="taskStatusFilter">Status</label>
+                        <select id="taskStatusFilter" class="filter-select">
+                            <option value="">All</option>
+                            <option value="Planned">Planned</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Overdue">Overdue</option>
+                        </select>
+                    </div>
+                    <div class="filter-group task-search-group">
+                        <label for="taskManagerSearch">Search</label>
+                        <div class="search-container task-search-container">
+                            <input type="text" id="taskManagerSearch" class="search-input" placeholder="Task ID, Plant, Name, Task..." />
+                            <span class="search-icon">🔍</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <div id="taskManagerLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading tasks...</span>
+                    </div>
+                    <table id="taskManagerTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Task ID</th>
+                                <th>Plant</th>
+                                <th>Name</th>
+                                <th>Frequency</th>
+                                <th>Task</th>
+                                <th>Planned Date</th>
+                                <th>Actual Date</th>
+                                <th>Status</th>
+                                <th>Remark</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taskManagerTableBody">
+                        </tbody>
+                    </table>
+                    <div id="taskManagerErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="taskManagerEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">✅</div>
+                        <h3>No tasks found</h3>
+                        <p>Add your first task to start tracking</p>
+                        <button class="btn-primary" onclick="document.getElementById('openTaskFormBtn').click()">
+                            Add Task
+                        </button>
+                    </div>
+                    <div id="taskManagerPagination" class="pagination" style="display: none;">
+                        <div class="pagination-info">
+                            <span id="taskManagerPaginationInfo">Showing 0-0 of 0</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button class="pagination-btn" id="taskManagerPrevBtn" disabled>Previous</button>
+                            <div class="pagination-pages" id="taskManagerPageNumbers"></div>
+                            <button class="pagination-btn" id="taskManagerNextBtn" disabled>Next</button>
+                        </div>
+                        <div class="pagination-size">
+                            <label>Rows per page:</label>
+                            <select id="taskManagerPageSize" class="pagination-select">
+                                <option value="10">10</option>
+                                <option value="25" selected>25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management Page (Admin Only) -->
+            <div id="userManagementPage" class="page">
+                <div class="content-header">
+                    <h2>User Management</h2>
+                    <p class="subtitle">Manage users, roles, and access (Admin Only)</p>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <button class="btn-primary" id="openUserFormBtn">
+                        <span class="btn-icon">+</span>
+                        Add New User
+                    </button>
+                    <button class="btn-secondary" id="syncUsersBtn" title="Sync all users from authentication">
+                        <span class="btn-icon">🔄</span>
+                        Sync Users
+                    </button>
+                </div>
+
+                <!-- User Management Table Container -->
+                <div class="table-container">
+                    <div id="userLoadingMessage" class="loading-message">
+                        <div class="spinner"></div>
+                        <span>Loading users...</span>
+                    </div>
+                    <table id="userManagementTable" style="display: none;">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Full Name</th>
+                                <th>Role</th>
+                                <th>Plant</th>
+                                <th>Created At</th>
+                                <th>Last Sign In</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userManagementTableBody">
+                        </tbody>
+                    </table>
+                    <div id="userErrorMessage" class="error-message" style="display: none;"></div>
+                    <div id="userEmptyMessage" class="empty-message" style="display: none;">
+                        <div class="empty-icon">👥</div>
+                        <h3>No users found</h3>
+                        <p>Get started by adding your first user</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Overlay for Settings -->
+    <div id="modalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="settingsModalTitle">Add Machine Settings</h2>
+                <button class="modal-close" id="closeModalBtn" aria-label="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="settingsForm" class="settings-form">
+                <input type="hidden" id="settingsEditId" name="settingsEditId" value="">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="plant">Plant <span class="required">*</span></label>
+                        <select id="plant" name="plant" required>
+                            <option value="">Select Plant</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="machine">Machine <span class="required">*</span></label>
+                        <select id="machine" name="machine" required>
+                            <option value="">Select Machine (IoT Enabled Only)</option>
+                        </select>
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 0.75rem;">
+                            Only IoT-enabled machines from Work Center Master are shown
+                        </small>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="part_combined">Part No. / Part Name <span class="required">*</span></label>
+                        <select 
+                            id="part_combined" 
+                            name="part_combined" 
+                            required
+                        >
+                            <option value="">Select Part No. / Part Name</option>
+                            <!-- Options will be populated by JavaScript -->
+                        </select>
+                        <input type="hidden" id="part_no" name="part_no">
+                        <input type="hidden" id="part_name" name="part_name">
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; font-size: 0.7rem;">
+                            Search and select from dropdown only
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="operation">Operation <span class="required">*</span></label>
+                        <select id="operation" name="operation" required>
+                            <option value="">Select Operation</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cycle_time">Cycle Time <span class="required">*</span></label>
+                        <input type="number" id="cycle_time" name="cycle_time" step="0.01" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="part_count_per_cycle">Part Count Per Cycle <span class="required">*</span></label>
+                        <input type="number" id="part_count_per_cycle" name="part_count_per_cycle" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="inspection_applicability">Inspection Applicability <span class="required">*</span></label>
+                        <input type="text" id="inspection_applicability" name="inspection_applicability" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cell_name">Cell Name <span class="required">*</span></label>
+                        <input type="text" id="cell_name" name="cell_name" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="cell_leader">Cell Leader <span class="required">*</span></label>
+                        <input type="text" id="cell_leader" name="cell_leader" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="workstations">No. of Workstations <span class="required">*</span></label>
+                        <input type="number" id="workstations" name="workstations" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="mandays">Mandays <span class="required">*</span></label>
+                        <input type="number" id="mandays" name="mandays" step="0.01" required readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="tool_code">Tool Code <span class="required">*</span></label>
+                        <input type="text" id="tool_code" name="tool_code" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="operator_code">Operator Code <span class="required">*</span></label>
+                        <input type="text" id="operator_code" name="operator_code" required>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="loss_reason">Loss Reason</label>
+                        <input type="text" id="loss_reason" name="loss_reason">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit">Save Settings</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Overlay for Process Master -->
+    <div id="processMasterModalOverlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 id="processMasterModalTitle">Add Process Master</h2>
+                <button class="modal-close" id="closeProcessMasterModalBtn" aria-label="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="processMasterForm" class="settings-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="pm_plant">Plant</label>
+                        <input type="text" id="pm_plant" name="pm_plant">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_sr_no">Sr. No.</label>
+                        <input type="number" id="pm_sr_no" name="pm_sr_no">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_cell_name">Cell Name</label>
+                        <input type="text" id="pm_cell_name" name="pm_cell_name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_sap_code">SAP Code/ Part No.</label>
+                        <input type="text" id="pm_sap_code" name="pm_sap_code">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_part_name">Part Name</label>
+                        <input type="text" id="pm_part_name" name="pm_part_name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_operation">Operation</label>
+                        <input type="text" id="pm_operation" name="pm_operation">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_cycle_time">Cycle Time per Piece</label>
+                        <input type="number" id="pm_cycle_time" name="pm_cycle_time" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_cavities">No. of Cavities in Tool</label>
+                        <input type="number" id="pm_cavities" name="pm_cavities">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_machine">Machine</label>
+                        <input type="text" id="pm_machine" name="pm_machine">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_workstations">No. of Workstations</label>
+                        <input type="number" id="pm_workstations" name="pm_workstations">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_inspection">Inspection Applicability</label>
+                        <input type="text" id="pm_inspection" name="pm_inspection">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_mandays">Mandays</label>
+                        <input type="number" id="pm_mandays" name="pm_mandays">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_cell_leader">Cell Leader</label>
+                        <input type="text" id="pm_cell_leader" name="pm_cell_leader">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_setup_time">Average Setup & Change Over Time (Minutes)</label>
+                        <input type="number" id="pm_setup_time" name="pm_setup_time">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pm_batch_qty">Batch Qty.</label>
+                        <input type="number" id="pm_batch_qty" name="pm_batch_qty">
+                    </div>
+                </div>
+
+                <input type="hidden" id="pm_edit_id" name="pm_edit_id">
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelProcessMasterFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="processMasterSubmitBtn">Save Process</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Login Page -->
+    <div id="loginPage" class="login-page">
+        <div class="login-container">
+            
+            <!-- Left Side - Decorative -->
+            <div class="login-left">
+                <div class="login-decorative-shapes">
+                    <div class="shape shape-circle"></div>
+                    <div class="shape shape-circle-outline"></div>
+                    <div class="shape shape-half-circle"></div>
+                    <div class="shape shape-line"></div>
+                    <div class="shape shape-dot"></div>
+                    <div class="shape shape-dot-small"></div>
+                    <div class="shape shape-circle-small"></div>
+                </div>
+                <div class="login-greeting">
+                    <h1>Hello!</h1>
+                    <h2>Have a GOOD DAY</h2>
+                </div>
+            </div>
+            
+            <!-- Right Side - Form -->
+            <div class="login-right">
+                <div class="login-form-wrapper">
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" data-tab="login">Login</button>
+                        <button class="auth-tab" data-tab="signup">Sign Up</button>
+                    </div>
+                    
+                    <!-- Login Form -->
+                    <form id="loginForm" class="auth-form active">
+                        <h2 class="login-title">Login</h2>
+                        <div class="form-group">
+                            <label for="loginEmail">Email</label>
+                            <input type="email" id="loginEmail" name="loginEmail" required autocomplete="email" placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" name="loginPassword" required autocomplete="current-password" placeholder="Enter your password">
+                        </div>
+                        <div class="form-options">
+                            <a href="#" class="forgot-password" id="forgotPasswordLink">Forgot password?</a>
+                        </div>
+                        <div id="loginError" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-login">Login</button>
+                        </div>
+                        <div class="login-switch">
+                            <span>Don't have an account? </span>
+                            <a href="#" class="switch-to-signup" id="switchToSignupLink">Create an account</a>
+                        </div>
+                    </form>
+
+                    <!-- Sign Up Form -->
+                    <form id="signupForm" class="auth-form">
+                        <h2 class="login-title">Sign Up</h2>
+                        <div class="form-group">
+                            <label for="signupEmail">Email</label>
+                            <input type="email" id="signupEmail" name="signupEmail" required autocomplete="email" placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupPassword">Password</label>
+                            <input type="password" id="signupPassword" name="signupPassword" required autocomplete="new-password" minlength="6" placeholder="Minimum 6 characters">
+                        </div>
+                        <div class="form-group">
+                            <label for="signupPasswordConfirm">Confirm Password</label>
+                            <input type="password" id="signupPasswordConfirm" name="signupPasswordConfirm" required autocomplete="new-password" placeholder="Confirm your password">
+                        </div>
+                        <div id="signupError" class="error-message" style="display: none;"></div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn-login">Sign Up</button>
+                        </div>
+                        <div class="login-switch">
+                            <span>Already have an account? </span>
+                            <a href="#" class="switch-to-login" id="switchToLoginLink">Login</a>
+                        </div>
+                        <div class="signup-notice">
+                            <small>After signing up, check your email to verify your account. After verification, your account will need admin approval before you can access the application.</small>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Supabase is now loaded via src/config/supabase.js -->
+
+    <!-- Modal Overlay for Work Center Master -->
+    <div id="workcenterModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="workcenterModalTitle">Add Machine</h2>
+                <button class="modal-close" id="closeWorkCenterModalBtn" aria-label="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="workcenterForm" class="settings-form">
+                <input type="hidden" id="workcenterEditId" name="workcenterEditId" value="">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="wc_machine">Machine <span class="required">*</span></label>
+                        <input type="text" id="wc_machine" name="wc_machine" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wc_plant">Plant</label>
+                        <input type="text" id="wc_plant" name="wc_plant">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="wc_iot_enabled" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="wc_iot_enabled" name="wc_iot_enabled" style="width: auto; margin: 0;">
+                            <span>IoT Enabled</span>
+                        </label>
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; display: block;">
+                            Only IoT-enabled machines will appear in Machine Settings
+                        </small>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelWorkCenterFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="workcenterSubmitBtn">Save Machine</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Overlay for Shift Schedule -->
+    <div id="shiftScheduleModalOverlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="shiftScheduleModalTitle">Add Shift Schedule Entry</h2>
+                <button class="modal-close" id="closeShiftScheduleModalBtn">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="shiftScheduleForm" class="settings-form">
+                <input type="hidden" id="shiftScheduleEditId" name="shiftScheduleEditId" value="">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="ss_plant">Plant <span class="required">*</span></label>
+                        <input type="text" id="ss_plant" name="ss_plant" required placeholder="e.g., 3001">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ss_shift">Shift <span class="required">*</span></label>
+                        <select id="ss_shift" name="ss_shift" required>
+                            <option value="">Select Shift</option>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="General">General</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ss_time">Time Slot <span class="required">*</span></label>
+                        <input type="text" id="ss_time" name="ss_time" required placeholder="e.g., 07:00 - 08:00">
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; display: block;">
+                            Format: HH:MM - HH:MM (e.g., 07:00 - 08:00)
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ss_available_time">Available Time (minutes) <span class="required">*</span></label>
+                        <input type="number" id="ss_available_time" name="ss_available_time" required min="0" max="60" value="60">
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; display: block;">
+                            Minutes available for operation (0-60)
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="ss_planned_downtime">Planned Down Time (minutes) <span class="required">*</span></label>
+                        <input type="number" id="ss_planned_downtime" name="ss_planned_downtime" required min="0" max="60" value="0">
+                        <small style="color: var(--text-secondary); margin-top: 0.25rem; display: block;">
+                            Minutes of planned downtime (0-60)
+                        </small>
+                    </div>
+
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="ss_remark">Remark</label>
+                        <input type="text" id="ss_remark" name="ss_remark" placeholder="e.g., Tea Break, Lunch, Dinner, Shift Start">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelShiftScheduleFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="shiftScheduleSubmitBtn">Save Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Overlay for Loss Reason -->
+    <div id="lossReasonModalOverlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="lossReasonModalTitle">Add Loss Reason</h2>
+                <button class="modal-close" id="closeLossReasonModalBtn">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="lossReasonForm" class="settings-form">
+                <input type="hidden" id="lossReasonEditId" name="lossReasonEditId" value="">
+                <div class="form-grid">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label for="lr_loss_reason">Loss Reason <span class="required">*</span></label>
+                        <input type="text" id="lr_loss_reason" name="lr_loss_reason" required placeholder="e.g., Machine Breakdown, Material Shortage">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelLossReasonFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="lossReasonSubmitBtn">Save Loss Reason</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Overlay for Task Manager -->
+    <div id="taskManagerModalOverlay" class="modal-overlay">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="taskManagerModalTitle">Add Task</h2>
+                <button class="modal-close" id="closeTaskManagerModalBtn" aria-label="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="taskManagerForm" class="settings-form">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="tm_plant">Plant <span class="required">*</span></label>
+                        <input type="text" id="tm_plant" name="tm_plant" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tm_name">Name <span class="required">*</span></label>
+                        <input type="text" id="tm_name" name="tm_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tm_frequency">Frequency <span class="required">*</span></label>
+                        <select id="tm_frequency" name="tm_frequency" required>
+                            <option value="">Select Frequency</option>
+                            <option value="Daily">Daily</option>
+                            <option value="Weekly">Weekly</option>
+                            <option value="Monthly">Monthly</option>
+                            <option value="One-time">One-time</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="tm_task">Task <span class="required">*</span></label>
+                        <input type="text" id="tm_task" name="tm_task" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="tm_planned_date">Planned Date <span class="required">*</span></label>
+                        <input type="date" id="tm_planned_date" name="tm_planned_date" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="tm_remark">Remark</label>
+                        <input type="text" id="tm_remark" name="tm_remark">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelTaskManagerFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="taskManagerSubmitBtn">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Choices.js for enhanced searchable selects -->
+    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+    <!-- Application Scripts -->
+    <!-- Load Supabase via CDN first - Must be available before script.js -->
+    <script type="module">
+        import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+        
+        // Supabase Configuration
+        const supabaseUrl = "https://tzoloagoaysipwxuyldu.supabase.co";
+        const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6b2xvYWdvYXlzaXB3eHV5bGR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MDM3MzIsImV4cCI6MjA3ODk3OTczMn0.BwC-uFnlkWtaGNVEee4VFuL-trsdz1aawDC77F3afWk";
+        
+        // Create Supabase client and make it globally available
+        window.supabase = createClient(supabaseUrl, supabaseAnonKey);
+        
+        // Mark as ready
+        window.supabaseReady = true;
+        
+        // Dispatch event when ready
+        window.dispatchEvent(new CustomEvent('supabaseReady'));
+        
+        console.log('✅ Supabase initialized and available globally');
+    </script>
+    
+    <!-- Legacy script.js - Contains all application functionality -->
+    <!-- It waits for window.supabase to be available (checkSupabase interval) -->
+    <script src="script.js"></script>
+
+    <!-- Modal Overlay for User Management -->
+    <div id="userModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="userModalTitle">Add New User</h2>
+                <button class="modal-close" id="closeUserModalBtn" aria-label="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form id="userForm" class="settings-form">
+                <input type="hidden" id="userEditId" name="userEditId" value="">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="user_email">Email <span class="required">*</span></label>
+                        <input type="email" id="user_email" name="user_email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user_password">Password <span class="required">*</span></label>
+                        <input type="password" id="user_password" name="user_password" minlength="6">
+                        <small style="color: #666; font-size: 0.85rem; display: block; margin-top: 0.25rem;">Minimum 6 characters (leave blank when editing to keep current password)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user_full_name">Full Name</label>
+                        <input type="text" id="user_full_name" name="user_full_name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user_role">Role <span class="required">*</span></label>
+                        <select id="user_role" name="user_role" required>
+                            <option value="operator">Operator</option>
+                            <option value="hod">HOD</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="user_plant">Plant</label>
+                        <input type="text" id="user_plant" name="user_plant">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" id="cancelUserFormBtn">Cancel</button>
+                    <button type="submit" class="btn-submit" id="userSubmitBtn">Save User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>
