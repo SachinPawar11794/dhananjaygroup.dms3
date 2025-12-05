@@ -4419,14 +4419,17 @@ function updateHourlyReportLastUpdated(data) {
     
     if (!lastUpdatedContainer || !lastUpdatedTime) return;
     
-    // Find the most recent "Work Day Date" from the data
+    // Find the most recent "updated_at" or "created_at" timestamp from the data
+    // This shows when the report was actually generated/modified, not the work day
     let mostRecentDate = null;
     
     if (data && data.length > 0) {
         for (const item of data) {
-            if (item["Work Day Date"]) {
+            // Use updated_at first, then created_at as fallback
+            const timestamp = item["updated_at"] || item["created_at"] || item["Work Day Date"];
+            if (timestamp) {
                 // Properly handle timezone - treat as UTC if no timezone indicator
-                let iso = String(item["Work Day Date"]);
+                let iso = String(timestamp);
                 if (!iso.includes("Z") && !iso.includes("+")) {
                     iso = iso + "Z";
                 }
@@ -4462,19 +4465,22 @@ async function fetchHourlyReportLastUpdated() {
     try {
         const { data, error } = await window.supabase
             .from("HourlyReport")
-            .select('"Work Day Date"')
-            .order('"Work Day Date"', { ascending: false })
+            .select('updated_at, created_at, "Work Day Date"')
+            .order('updated_at', { ascending: false })
             .limit(1);
         
         if (error) throw error;
         
-        if (data && data.length > 0 && data[0]["Work Day Date"]) {
+        // Use updated_at timestamp to show when report was last generated
+        const timestamp = data && data.length > 0 ? (data[0]["updated_at"] || data[0]["created_at"] || data[0]["Work Day Date"]) : null;
+        
+        if (timestamp) {
             const lastUpdatedContainer = document.getElementById("hourlyReportLastUpdated");
             const lastUpdatedTime = document.getElementById("hourlyReportLastUpdatedTime");
             
             if (lastUpdatedContainer && lastUpdatedTime) {
                 // Properly handle timezone
-                let iso = String(data[0]["Work Day Date"]);
+                let iso = String(timestamp);
                 if (!iso.includes("Z") && !iso.includes("+")) {
                     iso = iso + "Z";
                 }
