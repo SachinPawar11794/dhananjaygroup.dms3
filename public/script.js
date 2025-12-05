@@ -475,50 +475,114 @@ async function handleEmailConfirmation() {
     }
 }
 
+// Sidebar state - global so it can be accessed
+let sidebarOpen = false;
+
+// Global function to toggle sidebar - can be called from console: toggleMobileSidebar()
+window.toggleMobileSidebar = function() {
+    const sidebar = document.getElementById("sidebar");
+    if (!sidebar) {
+        console.error("Sidebar not found");
+        return;
+    }
+    
+    sidebarOpen = !sidebarOpen;
+    
+    if (sidebarOpen) {
+        // Use setProperty with 'important' to override CSS !important rules
+        sidebar.style.setProperty('left', '0px', 'important');
+        sidebar.style.setProperty('box-shadow', '5px 0 25px rgba(0,0,0,0.5)', 'important');
+        sidebar.style.setProperty('display', 'flex', 'important');
+        sidebar.style.setProperty('visibility', 'visible', 'important');
+        sidebar.classList.add("open");
+        document.body.style.overflow = "hidden";
+        console.log("📱 Sidebar OPENED - left set to 0px with !important");
+    } else {
+        sidebar.style.setProperty('left', '-280px', 'important');
+        sidebar.style.setProperty('box-shadow', 'none', 'important');
+        sidebar.classList.remove("open");
+        document.body.style.overflow = "";
+        console.log("📱 Sidebar CLOSED");
+    }
+};
+
 // Sidebar functionality
 function initializeSidebar() {
     const menuToggle = document.getElementById("menuToggle");
     const sidebarToggle = document.getElementById("sidebarToggle");
     const sidebar = document.getElementById("sidebar");
 
+    console.log("🔧 initializeSidebar called", { 
+        menuToggle: !!menuToggle, 
+        sidebar: !!sidebar,
+        menuToggleVisible: menuToggle ? window.getComputedStyle(menuToggle).display : 'N/A'
+    });
+
     if (!sidebar) {
         console.error("Sidebar element not found");
         return;
     }
+    
+    // Make sure sidebar starts closed on mobile
+    if (window.innerWidth <= 768) {
+        sidebar.style.setProperty('left', '-280px', 'important');
+        sidebarOpen = false;
+    }
 
-    // Toggle sidebar on mobile - use both click and touchend for better mobile support
+    // Menu toggle button (hamburger ☰)
     if (menuToggle) {
-        const toggleSidebar = (e) => {
+        console.log("📱 Setting up menu toggle button...");
+        
+        // Direct onclick assignment (most reliable)
+        menuToggle.onclick = function(e) {
             e.preventDefault();
             e.stopPropagation();
-            sidebar.classList.toggle("open");
-            console.log("Menu toggle clicked, sidebar open:", sidebar.classList.contains("open"));
+            console.log("📱 Menu button CLICKED via onclick");
+            window.toggleMobileSidebar();
         };
         
-        menuToggle.addEventListener("click", toggleSidebar);
-        // Add touchend for better mobile responsiveness
-        menuToggle.addEventListener("touchend", (e) => {
+        // Also add event listener as backup
+        menuToggle.addEventListener("click", function(e) {
             e.preventDefault();
-            toggleSidebar(e);
-        }, { passive: false });
-    }
-
-    // Close button inside sidebar
-    if (sidebarToggle) {
-        sidebarToggle.addEventListener("click", (e) => {
-            e.preventDefault();
-            sidebar.classList.remove("open");
+            e.stopPropagation();
+            console.log("📱 Menu button CLICKED via addEventListener");
+            window.toggleMobileSidebar();
         });
+        
+        console.log("✅ Menu toggle onclick assigned");
+    } else {
+        console.error("❌ menuToggle element not found!");
     }
 
-    // Close sidebar when clicking outside on mobile
+    // Close button inside sidebar (X button)
+    if (sidebarToggle) {
+        sidebarToggle.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (sidebarOpen) {
+                window.toggleMobileSidebar();
+            }
+        };
+    }
+
+    // Close sidebar when clicking outside
     document.addEventListener("click", (e) => {
-        if (window.innerWidth <= 768 && sidebar.classList.contains("open")) {
-            // Check if click is outside sidebar and menu toggle
-            if (!sidebar.contains(e.target) && menuToggle && !menuToggle.contains(e.target)) {
-                sidebar.classList.remove("open");
+        if (sidebarOpen && window.innerWidth <= 768) {
+            const menuBtn = document.getElementById("menuToggle");
+            if (!sidebar.contains(e.target) && (!menuBtn || !menuBtn.contains(e.target))) {
+                window.toggleMobileSidebar();
             }
         }
+    });
+    
+    // Close sidebar when navigating (selecting a menu item)
+    const navItems = sidebar.querySelectorAll(".nav-item");
+    navItems.forEach(item => {
+        item.addEventListener("click", () => {
+            if (window.innerWidth <= 768 && sidebarOpen) {
+                window.toggleMobileSidebar();
+            }
+        });
     });
 }
 
@@ -3205,7 +3269,12 @@ function updateUIForAuth(session) {
         if (loginBtn) loginBtn.style.display = "none";
         if (userEmail) userEmail.textContent = session.user.email;
         if (mainLayout) mainLayout.style.display = "flex";
-        if (sidebar) sidebar.style.display = "flex";
+        
+        // Show sidebar and add authenticated class for mobile CSS
+        if (sidebar) {
+            sidebar.style.display = "flex";
+            sidebar.classList.add("authenticated");
+        }
         
         // Hide login page
         const loginPage = document.getElementById("loginPage");
@@ -3250,7 +3319,13 @@ function updateUIForAuth(session) {
         if (loginBtn) loginBtn.style.display = "block";
         if (openFormBtn) openFormBtn.style.display = "none";
         if (mainLayout) mainLayout.style.display = "none";
-        if (sidebar) sidebar.style.display = "none";
+        
+        // Hide sidebar and remove authenticated class
+        if (sidebar) {
+            sidebar.style.display = "none";
+            sidebar.classList.remove("authenticated");
+            sidebar.classList.remove("open");
+        }
         
         // Show login page (full page, not modal)
         const loginPage = document.getElementById("loginPage");
