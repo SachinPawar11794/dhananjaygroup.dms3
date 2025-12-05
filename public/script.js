@@ -766,6 +766,7 @@ function navigateToHash(hash, addToHistory = true) {
             ];
             if (openFormBtn) openFormBtn.style.display = "none";
             loadHourlyReportTable(1);
+            startAutoUpdateCountdown(); // Start countdown timer
         }
     } else if (module === "task-manager") {
         navModules.forEach(nav => nav.classList.remove("active"));
@@ -4825,6 +4826,87 @@ function updateHourlyReportLastUpdated(data) {
         lastUpdatedContainer.style.display = "flex";
     } else {
         lastUpdatedContainer.style.display = "none";
+    }
+}
+
+// =============================================
+// AUTO-UPDATE COUNTDOWN TIMER (5-minute intervals)
+// =============================================
+
+let countdownInterval = null;
+
+// Start the countdown timer for next auto-update
+function startAutoUpdateCountdown() {
+    const countdownEl = document.getElementById("nextAutoUpdateCountdown");
+    if (!countdownEl) return;
+    
+    // Clear any existing interval
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+    }
+    
+    // Update countdown every second
+    countdownInterval = setInterval(() => {
+        updateCountdown(countdownEl);
+    }, 1000);
+    
+    // Initial update
+    updateCountdown(countdownEl);
+}
+
+// Calculate and display time until next 5-minute mark
+function updateCountdown(countdownEl) {
+    const now = new Date();
+    const minutes = now.getMinutes();
+    const seconds = now.getSeconds();
+    
+    // Calculate next 5-minute mark
+    // e.g., if it's 10:02:30, next run is at 10:05:00
+    const minutesUntilNext = 5 - (minutes % 5);
+    let totalSecondsUntilNext = (minutesUntilNext * 60) - seconds;
+    
+    // If we're exactly on a 5-minute mark, show 5:00
+    if (totalSecondsUntilNext <= 0) {
+        totalSecondsUntilNext = 5 * 60;
+    }
+    
+    // Format as MM:SS
+    const displayMinutes = Math.floor(totalSecondsUntilNext / 60);
+    const displaySeconds = totalSecondsUntilNext % 60;
+    
+    const formattedTime = `${displayMinutes}:${displaySeconds.toString().padStart(2, '0')}`;
+    
+    if (countdownEl) {
+        countdownEl.textContent = formattedTime;
+        
+        // Change color when less than 30 seconds
+        if (totalSecondsUntilNext <= 30) {
+            countdownEl.style.color = '#10b981'; // Green
+            countdownEl.style.animation = 'pulse 0.5s ease-in-out infinite';
+        } else if (totalSecondsUntilNext <= 60) {
+            countdownEl.style.color = '#f59e0b'; // Orange
+            countdownEl.style.animation = 'none';
+        } else {
+            countdownEl.style.color = '#2563eb'; // Blue
+            countdownEl.style.animation = 'none';
+        }
+    }
+}
+
+// Stop the countdown timer
+function stopAutoUpdateCountdown() {
+    if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+    }
+}
+
+// Initialize countdown when hourly report page is shown
+function initAutoUpdateCountdown() {
+    // Start countdown when on hourly report page
+    const hourlyReportPage = document.getElementById("hourlyReportPage");
+    if (hourlyReportPage && hourlyReportPage.classList.contains("active")) {
+        startAutoUpdateCountdown();
     }
 }
 

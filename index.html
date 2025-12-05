@@ -703,10 +703,17 @@
                             </button>
                         </div>
                     </div>
-                    <div id="hourlyReportLastUpdated" class="last-updated-info" style="display: none;">
-                        <span class="last-updated-icon">🕐</span>
-                        <span class="last-updated-label">LAST UPDATED:</span>
-                        <span class="last-updated-time" id="hourlyReportLastUpdatedTime">-</span>
+                    <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
+                        <div id="hourlyReportLastUpdated" class="last-updated-info" style="display: none;">
+                            <span class="last-updated-icon">🕐</span>
+                            <span class="last-updated-label">LAST UPDATED:</span>
+                            <span class="last-updated-time" id="hourlyReportLastUpdatedTime">-</span>
+                        </div>
+                        <div id="nextAutoUpdateContainer" class="next-update-info">
+                            <span class="next-update-icon">⏱️</span>
+                            <span class="next-update-label">NEXT AUTO-UPDATE:</span>
+                            <span class="next-update-countdown" id="nextAutoUpdateCountdown">--:--</span>
+                        </div>
                     </div>
                 </div>
 
