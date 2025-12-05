@@ -1,4 +1,152 @@
 // ============================================================================
+// PERFORMANCE MONITORING
+// ============================================================================
+
+// Performance tracking utility
+const perfTracker = {
+    enabled: true, // Set to false to disable logging
+    timers: {},
+    
+    start(label) {
+        if (!this.enabled) return;
+        this.timers[label] = performance.now();
+        console.log(`⏱️ [PERF] Starting: ${label}`);
+    },
+    
+    end(label) {
+        if (!this.enabled || !this.timers[label]) return;
+        const duration = performance.now() - this.timers[label];
+        const color = duration > 1000 ? 'color: red; font-weight: bold' : 
+                      duration > 500 ? 'color: orange' : 'color: green';
+        console.log(`%c⏱️ [PERF] ${label}: ${duration.toFixed(2)}ms`, color);
+        delete this.timers[label];
+        return duration;
+    },
+    
+    async track(label, asyncFn) {
+        this.start(label);
+        try {
+            const result = await asyncFn();
+            this.end(label);
+            return result;
+        } catch (error) {
+            this.end(label);
+            throw error;
+        }
+    }
+};
+
+// Log all Supabase queries for debugging
+function logSupabaseQuery(table, operation, duration, rowCount) {
+    if (!perfTracker.enabled) return;
+    const icon = duration > 1000 ? '🔴' : duration > 500 ? '🟡' : '🟢';
+    console.log(`${icon} Supabase: ${operation} ${table} - ${duration.toFixed(0)}ms - ${rowCount} rows`);
+}
+
+// Debug function - call from browser console: checkSupabaseStatus()
+window.checkSupabaseStatus = async function() {
+    console.log('\n========== SUPABASE STATUS CHECK ==========\n');
+    
+    // Check if Supabase is loaded
+    if (!window.supabase) {
+        console.error('❌ Supabase client is NOT loaded!');
+        return;
+    }
+    console.log('✅ Supabase client is loaded');
+    
+    // Check auth
+    if (!window.supabase.auth) {
+        console.error('❌ Supabase auth is NOT available!');
+        return;
+    }
+    console.log('✅ Supabase auth is available');
+    
+    // Check session
+    try {
+        const startAuth = performance.now();
+        const { data: { session }, error } = await window.supabase.auth.getSession();
+        const authDuration = performance.now() - startAuth;
+        
+        if (error) {
+            console.error('❌ Session check error:', error);
+        } else if (session) {
+            console.log(`✅ User logged in: ${session.user.email} (${authDuration.toFixed(0)}ms)`);
+        } else {
+            console.log(`⚠️ No active session (${authDuration.toFixed(0)}ms)`);
+        }
+    } catch (e) {
+        console.error('❌ Session check failed:', e);
+    }
+    
+    // Test database connection with a simple query
+    console.log('\n--- Database Connection Test ---');
+    const tables = ['settings', 'Process Master', 'WorkCenterMaster', 'IoT Database', 'ShiftSchedule', 'LossReason', 'HourlyReport'];
+    
+    for (const table of tables) {
+        try {
+            const start = performance.now();
+            const { count, error } = await window.supabase
+                .from(table)
+                .select('*', { count: 'exact', head: true });
+            const duration = performance.now() - start;
+            
+            if (error) {
+                console.error(`❌ ${table}: ${error.message}`);
+            } else {
+                const icon = duration > 1000 ? '🔴' : duration > 500 ? '🟡' : '🟢';
+                console.log(`${icon} ${table}: ${count} rows (${duration.toFixed(0)}ms)`);
+            }
+        } catch (e) {
+            console.error(`❌ ${table}: ${e.message}`);
+        }
+    }
+    
+    console.log('\n========== END STATUS CHECK ==========\n');
+    console.log('💡 Tips:');
+    console.log('   - 🟢 < 500ms = Good');
+    console.log('   - 🟡 500-1000ms = Slow');
+    console.log('   - 🔴 > 1000ms = Very slow (check network/Supabase status)');
+    console.log('   - If all queries are slow, your Supabase project might be paused (free tier)');
+    console.log('   - Go to supabase.com/dashboard and check if project needs to be restored');
+};
+
+// Quick test function - call from browser console: testQuery('settings')
+window.testQuery = async function(tableName) {
+    if (!window.supabase) {
+        console.error('Supabase not loaded');
+        return;
+    }
+    
+    console.log(`\nTesting query to "${tableName}"...`);
+    const start = performance.now();
+    
+    try {
+        const { data, error, count } = await window.supabase
+            .from(tableName)
+            .select('*', { count: 'exact' })
+            .limit(5);
+        
+        const duration = performance.now() - start;
+        
+        if (error) {
+            console.error(`Error: ${error.message}`);
+        } else {
+            console.log(`✅ Query completed in ${duration.toFixed(0)}ms`);
+            console.log(`   Total rows: ${count}`);
+            console.log(`   Sample data:`, data);
+        }
+    } catch (e) {
+        console.error(`Failed: ${e.message}`);
+    }
+};
+
+// Enable/disable performance logging - call: togglePerfLogs()
+window.togglePerfLogs = function() {
+    perfTracker.enabled = !perfTracker.enabled;
+    console.log(`Performance logging: ${perfTracker.enabled ? 'ENABLED' : 'DISABLED'}`);
+};
+
+// ============================================================================
 // CACHE AND CONNECTION MANAGEMENT
 // ============================================================================
 
@@ -188,6 +336,8 @@ window.addEventListener('supabaseReady', () => {
 });
 
 function initializeApp() {
+    console.log('🚀 initializeApp() started...');
+    
     // Start connection monitoring (only after Supabase is confirmed ready)
     if (window.supabase && window.supabase.auth) {
         startConnectionMonitoring();
@@ -197,6 +347,7 @@ function initializeApp() {
     // Handle email confirmation callback from URL
     handleEmailConfirmation();
     
+    console.log('🔐 Checking authentication state...');
     // Check authentication state
     checkAuthState();
     
@@ -896,11 +1047,17 @@ async function loadPMSDashboardStats() {
         return;
     }
     
+    perfTracker.start('Dashboard Stats Total');
+    
     try {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         
+        console.log('📊 Loading dashboard stats...');
+        const startTime = performance.now();
+        
         // Run ALL queries in PARALLEL for faster loading
+        const queryStart = performance.now();
         const [
             settingsResult,
             processResult,
@@ -910,14 +1067,33 @@ async function loadPMSDashboardStats() {
             lossResult,
             hourlyResult
         ] = await Promise.all([
-            window.supabase.from("settings").select("*", { count: "exact", head: true }),
-            window.supabase.from("Process Master").select("*", { count: "exact", head: true }),
-            window.supabase.from("WorkCenterMaster").select("*", { count: "exact", head: true }),
-            window.supabase.from("IoT Database").select("*", { count: "exact", head: true }).gte("Timestamp", yesterday.toISOString()),
-            window.supabase.from("ShiftSchedule").select("*", { count: "exact", head: true }),
-            window.supabase.from("LossReason").select("*", { count: "exact", head: true }),
-            window.supabase.from("HourlyReport").select("*", { count: "exact", head: true })
+            perfTracker.track('Query: settings', () => 
+                window.supabase.from("settings").select("*", { count: "exact", head: true })),
+            perfTracker.track('Query: Process Master', () => 
+                window.supabase.from("Process Master").select("*", { count: "exact", head: true })),
+            perfTracker.track('Query: WorkCenterMaster', () => 
+                window.supabase.from("WorkCenterMaster").select("*", { count: "exact", head: true })),
+            perfTracker.track('Query: IoT Database', () => 
+                window.supabase.from("IoT Database").select("*", { count: "exact", head: true }).gte("Timestamp", yesterday.toISOString())),
+            perfTracker.track('Query: ShiftSchedule', () => 
+                window.supabase.from("ShiftSchedule").select("*", { count: "exact", head: true })),
+            perfTracker.track('Query: LossReason', () => 
+                window.supabase.from("LossReason").select("*", { count: "exact", head: true })),
+            perfTracker.track('Query: HourlyReport', () => 
+                window.supabase.from("HourlyReport").select("*", { count: "exact", head: true }))
         ]);
+        
+        const queryDuration = performance.now() - queryStart;
+        console.log(`📊 All parallel queries completed in ${queryDuration.toFixed(0)}ms`);
+        
+        // Log any errors
+        if (settingsResult.error) console.error('Settings error:', settingsResult.error);
+        if (processResult.error) console.error('Process error:', processResult.error);
+        if (machineResult.error) console.error('Machine error:', machineResult.error);
+        if (iotResult.error) console.error('IoT error:', iotResult.error);
+        if (shiftResult.error) console.error('Shift error:', shiftResult.error);
+        if (lossResult.error) console.error('Loss error:', lossResult.error);
+        if (hourlyResult.error) console.error('Hourly error:', hourlyResult.error);
         
         // Update UI with results
         document.getElementById("pmsSettingsCount").textContent = settingsResult.count || 0;
@@ -934,9 +1110,14 @@ async function loadPMSDashboardStats() {
         const hourlyReportCountEl = document.getElementById("pmsHourlyReportCount");
         if (hourlyReportCountEl) hourlyReportCountEl.textContent = hourlyResult.count || 0;
         
+        const totalDuration = performance.now() - startTime;
+        console.log(`✅ Dashboard stats loaded in ${totalDuration.toFixed(0)}ms`);
+        
     } catch (error) {
         console.error("Error loading PMS dashboard stats:", error);
     }
+    
+    perfTracker.end('Dashboard Stats Total');
 }
 
 // Modal functionality
@@ -2338,6 +2519,8 @@ const workcenterPaginationState = {
 
 // Function to load and display settings table with pagination
 async function loadSettingsTable(page = 1) {
+    perfTracker.start('Load Settings Table');
+    
     const loadingMessage = document.getElementById("loadingMessage");
     const table = document.getElementById("settingsTable");
     const tableBody = document.getElementById("settingsTableBody");
@@ -2508,6 +2691,8 @@ async function loadSettingsTable(page = 1) {
             errorMessage.style.display = "block";
         }
     }
+    
+    perfTracker.end('Load Settings Table');
 }
 
 // Update settings pagination controls
@@ -2953,6 +3138,8 @@ function showToast(message, type = "success") {
 
 // Authentication Functions
 async function checkAuthState() {
+    console.log('🔐 checkAuthState() called...');
+    
     // Ensure Supabase is available
     if (!window.supabase || !window.supabase.auth) {
         console.error('Supabase not available in checkAuthState');
@@ -2961,7 +3148,18 @@ async function checkAuthState() {
     }
     
     try {
-        const { data: { session }, error } = await window.supabase.auth.getSession();
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Session check timeout after 10s')), 10000)
+        );
+        
+        console.log('⏳ Calling getSession()...');
+        const sessionPromise = window.supabase.auth.getSession();
+        
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise]);
+        
+        console.log('✅ getSession() completed', session ? 'with session' : 'no session');
+        
         if (error) {
             console.error('Error getting session:', error);
             updateUIForAuth(null);
@@ -2976,7 +3174,22 @@ async function checkAuthState() {
     }
 }
 
+// Prevent duplicate UI updates
+let lastUIUpdateTime = 0;
+let isUpdatingUI = false;
+
 function updateUIForAuth(session) {
+    // Debounce - prevent rapid repeated calls
+    const now = Date.now();
+    if (now - lastUIUpdateTime < 500 || isUpdatingUI) {
+        console.log('⏭️ Skipping duplicate updateUIForAuth call');
+        return;
+    }
+    lastUIUpdateTime = now;
+    isUpdatingUI = true;
+    
+    console.log('🎨 updateUIForAuth() called', session ? 'with session' : 'no session');
+    
     const userMenu = document.getElementById("userMenu");
     const loginBtn = document.getElementById("loginBtn");
     const userEmail = document.getElementById("userEmail");
@@ -2985,6 +3198,8 @@ function updateUIForAuth(session) {
     const openFormBtn = document.getElementById("openFormBtn");
 
     if (session && session.user) {
+        console.log('👤 User logged in:', session.user.email);
+        
         // User is logged in
         if (userMenu) userMenu.style.display = "flex";
         if (loginBtn) loginBtn.style.display = "none";
@@ -2996,6 +3211,7 @@ function updateUIForAuth(session) {
         const loginPage = document.getElementById("loginPage");
         if (loginPage) loginPage.style.display = "none";
         
+        console.log('🔍 Checking admin status...');
         // Check admin status and show/hide user management menu
         checkAdminStatus();
         
@@ -3042,6 +3258,9 @@ function updateUIForAuth(session) {
             loginPage.style.display = "flex";
         }
     }
+    
+    // Reset flag after a short delay
+    setTimeout(() => { isUpdatingUI = false; }, 100);
 }
 
 function initializeAuthentication() {
@@ -4245,6 +4464,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Load Hourly Report Table
 async function loadHourlyReportTable(page = 1) {
+    console.log('📊 loadHourlyReportTable() started, page:', page);
+    perfTracker.start('Load Hourly Report Table');
+    
     const tableBody = document.getElementById("hourlyReportTableBody");
     const loadingMessage = document.getElementById("hourlyReportLoadingMessage");
     const table = document.getElementById("hourlyReportTable");
@@ -4266,6 +4488,7 @@ async function loadHourlyReportTable(page = 1) {
             errorMessage.textContent = "Connection error. Please refresh the page.";
             errorMessage.style.display = "block";
         }
+        perfTracker.end('Load Hourly Report Table');
         return;
     }
 
@@ -4280,10 +4503,22 @@ async function loadHourlyReportTable(page = 1) {
         // Only filter to active if explicitly set to hide archived
         const hideArchived = paginationState.hourlyReport.hideArchived || false;
 
-        // Build query
+        // OPTIMIZED: Select only needed columns instead of "*"
+        // Note: Column names must match exact Supabase schema
+        const selectColumns = `
+            id, Plant, "Machine Name", "Sr No", Shift, "Work Day Date", "IoT Date", Time, 
+            Operator, "Part No.", "Part Name", Operation, 
+            "Cycle Time (Second) per piece", "Hourly Target", "Total Produced Qty.",
+            "OK Qty.", "Rej. Qty.", "Rew. Qty.", "Defect Type",
+            "Available Time (Minutes)", "Operating Time as per Cycle Time (Minutes)", 
+            "Total Down Time (Minutes)", "Loss Reasons", "Cell Name", "Cell Leader",
+            archived, created_at, updated_at
+        `.replace(/\s+/g, ' ').trim();
+
+        // Build query with specific columns
         let query = window.supabase
             .from("HourlyReport")
-            .select("*", { count: "exact" });
+            .select(selectColumns, { count: "exact" });
 
         // Apply filters
         if (dateFilter) {
@@ -4300,14 +4535,30 @@ async function loadHourlyReportTable(page = 1) {
         }
         // Otherwise show all (archived + real-time) - this is the default behavior
 
-        // Apply ordering and pagination
-        // Note: Column names with spaces need to be quoted in Supabase
-        const { data, error, count } = await query
-            .order('"Work Day Date"', { ascending: false })
-            .order('"Shift"', { ascending: true })
-            .order('"Time"', { ascending: true })
-            .range(from, to);
+        // OPTIMIZED: Run main query and archive config in PARALLEL
+        const queryStart = performance.now();
+        
+        // Wrap RPC call to handle errors gracefully
+        const getArchiveConfig = async () => {
+            try {
+                return await window.supabase.rpc('get_archive_config');
+            } catch (e) {
+                return { data: null };
+            }
+        };
+        
+        const [mainResult, archiveResult] = await Promise.all([
+            query
+                .order('"Work Day Date"', { ascending: false })
+                .order('"Shift"', { ascending: true })
+                .order('"Time"', { ascending: true })
+                .range(from, to),
+            getArchiveConfig()
+        ]);
+        
+        console.log(`⚡ Parallel queries completed in ${(performance.now() - queryStart).toFixed(0)}ms`);
 
+        const { data, error, count } = mainResult;
         if (error) throw error;
 
         if (loadingMessage) loadingMessage.style.display = "none";
@@ -4317,15 +4568,10 @@ async function loadHourlyReportTable(page = 1) {
         paginationState.hourlyReport.totalPages = Math.ceil((paginationState.hourlyReport.totalItems || 0) / pageSize) || 1;
         paginationState.hourlyReport.currentPage = page;
 
-        // Get archive frequency for calculating days until archive
+        // Get archive frequency from parallel query result
         let archiveFrequencyDays = 8; // Default
-        try {
-            const { data: archiveConfig } = await window.supabase.rpc('get_archive_config');
-            if (archiveConfig && archiveConfig.length > 0) {
-                archiveFrequencyDays = archiveConfig[0].archive_frequency_days || 8;
-            }
-        } catch (error) {
-            console.warn("Could not fetch archive config, using default 8 days:", error);
+        if (archiveResult.data && archiveResult.data.length > 0) {
+            archiveFrequencyDays = archiveResult.data[0].archive_frequency_days || 8;
         }
 
         if (data && data.length > 0) {
@@ -4409,6 +4655,9 @@ async function loadHourlyReportTable(page = 1) {
         }
         if (table) table.style.display = "none";
     }
+    
+    perfTracker.end('Load Hourly Report Table');
+    console.log('📊 loadHourlyReportTable() completed');
 }
 
 // Update Hourly Report Pagination UI
@@ -7704,18 +7953,15 @@ async function resetUserPassword(email) {
     }
 }
 
-// Check admin status on page load and auth state changes
-window.addEventListener('DOMContentLoaded', async () => {
-    // Check admin status after a short delay to ensure auth is ready
-    setTimeout(async () => {
-        const { data: { session } } = await window.supabase.auth.getSession();
-        if (session) {
-            await checkAdminStatus();
-        }
-    }, 1000);
-});
+// Check admin status on page load - REMOVED duplicate listener
+// Admin status is already checked in updateUIForAuth() which is called by the main auth listener
+// window.addEventListener('DOMContentLoaded', ...) - REMOVED to prevent duplicate calls
 
-// Also listen for auth state changes (only if supabase is initialized)
+// NOTE: Auth state listener moved to initializeApp() to prevent duplicate listeners
+// The listener in initializeApp() already calls updateUIForAuth() which calls checkAdminStatus()
+
+// Legacy code - keeping for reference but disabled to prevent infinite loop
+/*
 if (window.supabase && window.supabase.auth) {
     window.supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
@@ -7726,6 +7972,7 @@ if (window.supabase && window.supabase.auth) {
         }
     });
 }
+*/
 
 // Calculate days until archive for a record using IST timezone
 function calculateDaysUntilArchive(timestampOrDate, archiveFrequencyDays) {
