@@ -294,7 +294,7 @@ window.addEventListener("DOMContentLoaded", () => {
             
             if (!window.appInitialized) {
                 window.appInitialized = true;
-                initializeApp();
+            initializeApp();
             }
         } else {
             // Log if still waiting
@@ -704,6 +704,7 @@ function navigateToHash(hash, addToHistory = true) {
             ];
             if (openFormBtn) openFormBtn.style.display = "flex";
             loadSettingsTable();
+            updateSettingsHeaderInfo();
         } else if (page === "process-master") {
             document.getElementById("processMasterPage")?.classList.add("active");
             title = "PMS";
@@ -1150,7 +1151,7 @@ async function loadPMSDashboardStats() {
         
         const queryDuration = performance.now() - queryStart;
         console.log(`📊 All parallel queries completed in ${queryDuration.toFixed(0)}ms`);
-        
+
         // Log any errors
         if (settingsResult.error) console.error('Settings error:', settingsResult.error);
         if (processResult.error) console.error('Process error:', processResult.error);
@@ -1168,10 +1169,10 @@ async function loadPMSDashboardStats() {
         
         const shiftScheduleCountEl = document.getElementById("pmsShiftScheduleCount");
         if (shiftScheduleCountEl) shiftScheduleCountEl.textContent = shiftResult.count || 0;
-        
+
         const lossReasonCountEl = document.getElementById("pmsLossReasonCount");
         if (lossReasonCountEl) lossReasonCountEl.textContent = lossResult.count || 0;
-        
+
         const hourlyReportCountEl = document.getElementById("pmsHourlyReportCount");
         if (hourlyReportCountEl) hourlyReportCountEl.textContent = hourlyResult.count || 0;
         
@@ -2639,6 +2640,13 @@ async function loadSettingsTable(page = 1) {
             });
         }
 
+        // Helper to build a consistent key for cross-table aggregation
+        const buildKey = (plantValue, machineValue, partValue, operationValue) => {
+            return [plantValue, machineValue, partValue, operationValue]
+                .map(v => (v || "").toString().trim().toLowerCase())
+                .join("__");
+        };
+
         // Get all settings data to group by machine
         const { data: allData, error: allError } = await window.supabase
             .from("settings")
@@ -2646,6 +2654,69 @@ async function loadSettingsTable(page = 1) {
             .order("timestamp", { ascending: false });
 
         if (allError) throw allError;
+
+        // Figure out current work day and shift to scope aggregates
+        const currentWorkDay = getWorkDayDateForDB(new Date());
+
+        let currentShift = null;
+        try {
+            const { data: shiftRows } = await window.supabase
+                .from("ShiftSchedule")
+                .select("Time,Shift")
+                .order("Time", { ascending: true });
+            currentShift = getCurrentShiftFromSchedule(shiftRows);
+        } catch (e) {
+            console.warn("Unable to determine current shift; aggregating without shift filter", e);
+        }
+
+        // Aggregate target counts from HourlyReport filtered by work day + shift
+        const { data: hourlyRows, error: countsError } = await window.supabase
+            .from("HourlyReport")
+            .select('Plant,"Machine Name","Part No.","Operation","Hourly Target","Work Day Date","Shift"')
+            .eq("Work Day Date", currentWorkDay);
+
+        if (countsError) {
+            console.warn("Error loading HourlyReport aggregates for settings:", countsError);
+        }
+
+        const countsMap = new Map();
+        if (hourlyRows && hourlyRows.length > 0) {
+            hourlyRows.forEach(row => {
+                if (currentShift && row?.Shift && row.Shift !== currentShift) return;
+                const key = buildKey(row?.Plant, row?.["Machine Name"], row?.["Part No."], row?.Operation);
+                const target = Number(row?.["Hourly Target"]) || 0;
+
+                if (!countsMap.has(key)) {
+                    countsMap.set(key, { target: 0, actual: 0 });
+                }
+                const current = countsMap.get(key);
+                current.target += target;
+            });
+        }
+
+        // Aggregate actual counts from IoT Database filtered by work day + shift
+        const { data: iotRows, error: iotErr } = await window.supabase
+            .from("IoT Database")
+            .select('Plant,"Machine No.","Part No.","Operation","IoT Date","Shift","Total Produced Qty."')
+            .eq("IoT Date", currentWorkDay);
+
+        if (iotErr) {
+            console.warn("Error loading IoT aggregates for settings:", iotErr);
+        }
+
+        if (iotRows && iotRows.length > 0) {
+            iotRows.forEach(row => {
+                if (currentShift && row?.Shift && row.Shift !== currentShift) return;
+                const key = buildKey(row?.Plant, row?.["Machine No."], row?.["Part No."], row?.Operation);
+                const actual = Number(row?.["Total Produced Qty."]) || 0;
+
+                if (!countsMap.has(key)) {
+                    countsMap.set(key, { target: 0, actual: 0 });
+                }
+                const current = countsMap.get(key);
+                current.actual += actual;
+            });
+        }
 
         // Filter settings to only include IoT-enabled machines from WorkCenterMaster
         const filteredData = allData ? allData.filter(setting => {
@@ -2700,6 +2771,11 @@ async function loadSettingsTable(page = 1) {
             if (tableBody) {
                 tableBody.innerHTML = "";
                 data.forEach((setting) => {
+                    const countsKey = buildKey(setting.plant, setting.machine, setting.part_no, setting.operation);
+                    const aggregated = countsMap.get(countsKey);
+                    const targetCount = aggregated ? aggregated.target : setting.target_count;
+                    const actualCount = aggregated ? aggregated.actual : setting.actual_count;
+
                     const row = document.createElement("tr");
                     row.innerHTML = `
                         <td>${setting.id || "-"}</td>
@@ -2719,8 +2795,8 @@ async function loadSettingsTable(page = 1) {
                         <td>${setting.tool_code || "-"}</td>
                         <td>${setting.operator_code || "-"}</td>
                         <td>${setting.loss_reason || "-"}</td>
-                        <td>${setting.target_count !== null && setting.target_count !== undefined ? setting.target_count : "-"}</td>
-                        <td>${setting.actual_count !== null && setting.actual_count !== undefined ? setting.actual_count : "-"}</td>
+                        <td>${targetCount !== null && targetCount !== undefined ? targetCount : "-"}</td>
+                        <td>${actualCount !== null && actualCount !== undefined ? actualCount : "-"}</td>
                         <td>
                             <div class="action-buttons">
                                 <button class="btn-edit" data-setting='${JSON.stringify(setting).replace(/'/g, "&apos;")}' title="Edit">
@@ -3168,24 +3244,148 @@ function formatTimestamp(timestamp) {
     });
 }
 
-// Function to format Work Day Date as DD/MM/YYYY (date only, no time)
-function formatWorkDayDate(timestamp) {
-    if (!timestamp) return "-";
+// Work day date helper: uses 07:00 - 06:59 boundary in IST
+function getWorkDayDateForDB(date) {
+    if (!date) return null;
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return null;
+    
+    const istHour = parseInt(d.toLocaleString("en-US", { 
+        timeZone: "Asia/Kolkata", 
+        hour: "2-digit", 
+        hour12: false 
+    }));
+    
+    const istDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    
+    if (istHour >= 0 && istHour < 7) {
+        istDate.setDate(istDate.getDate() - 1);
+    }
+    
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, "0");
+    const day = String(istDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+}
 
-    let iso = String(timestamp);
-    // If the string has no explicit timezone (no 'Z' and no '+' offset), treat as UTC
-    if (!iso.includes("Z") && !iso.includes("+")) {
-        iso = iso + "Z";
+// Determine current shift from ShiftSchedule based on current IST time
+function getCurrentShiftFromSchedule(scheduleRows) {
+    if (!scheduleRows || scheduleRows.length === 0) return null;
+    
+    const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const nowMinutes = nowIST.getHours() * 60 + nowIST.getMinutes();
+    
+    for (const row of scheduleRows) {
+        const timeRange = row?.Time || row?.time;
+        const shift = row?.Shift || row?.shift;
+        if (!timeRange || !shift) continue;
+        
+        const [startTime, endTime] = timeRange.split(" - ").map(t => t.trim());
+        if (!startTime || !endTime) continue;
+        
+        const [startHour, startMin] = startTime.split(":").map(Number);
+        const [endHour, endMin] = endTime.split(":").map(Number);
+        
+        let startMinutes = startHour * 60 + startMin;
+        let endMinutes = endHour * 60 + endMin;
+        let checkMinutes = nowMinutes;
+        
+        // Handle overnight ranges
+        if (endMinutes < startMinutes) {
+            endMinutes += 24 * 60;
+            if (checkMinutes < startMinutes) {
+                checkMinutes += 24 * 60;
+            }
+        }
+        
+        if (checkMinutes >= startMinutes && checkMinutes < endMinutes) {
+            return shift;
+        }
+    }
+    
+    return null;
+}
+
+// Update header chips on Settings page with current work day date and shift
+async function updateSettingsHeaderInfo() {
+    const workDayEl = document.getElementById("settingsWorkDayDate");
+    const shiftEl = document.getElementById("settingsCurrentShift");
+    if (!workDayEl || !shiftEl) return;
+    
+    // Default placeholders
+    workDayEl.textContent = "--";
+    shiftEl.textContent = "Loading...";
+    
+    // Work day date based on 07:00-06:59 rule
+    workDayEl.textContent = getWorkDayDateForDB(new Date()) || "--";
+    
+    try {
+        const { data, error } = await window.supabase
+            .from("ShiftSchedule")
+            .select("Time,Shift")
+            .order("Time", { ascending: true });
+        
+        if (error) throw error;
+        
+        const currentShift = getCurrentShiftFromSchedule(data);
+        shiftEl.textContent = currentShift || "Not Set";
+    } catch (err) {
+        console.warn("Unable to load current shift info:", err);
+        shiftEl.textContent = "Unavailable";
+    }
+}
+
+// Flexible date parser to handle ISO, DD/MM/YYYY, MM/DD/YYYY
+function parseDateFlexible(dateStr) {
+    if (!dateStr) return null;
+    if (Object.prototype.toString.call(dateStr) === "[object Date]") {
+        return isNaN(dateStr.getTime()) ? null : dateStr;
     }
 
-    const date = new Date(iso);
+    // Try native parse (handles ISO best)
+    const d1 = new Date(dateStr);
+    if (!isNaN(d1.getTime())) return d1;
 
-    return date.toLocaleDateString("en-GB", {
-        timeZone: "Asia/Kolkata",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric"
-    });
+    // DD/MM/YYYY
+    const ddmmyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const m1 = ddmmyyyy.exec(dateStr);
+    if (m1) {
+        const day = parseInt(m1[1], 10);
+        const month = parseInt(m1[2], 10);
+        const year = parseInt(m1[3], 10);
+        const d = new Date(Date.UTC(year, month - 1, day));
+        if (!isNaN(d.getTime())) return d;
+    }
+
+    // MM/DD/YYYY
+    const mmddyyyy = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    const m2 = mmddyyyy.exec(dateStr);
+    if (m2) {
+        const month = parseInt(m2[1], 10);
+        const day = parseInt(m2[2], 10);
+        const year = parseInt(m2[3], 10);
+        const d = new Date(Date.UTC(year, month - 1, day));
+        if (!isNaN(d.getTime())) return d;
+    }
+
+    return null;
+}
+
+// Function to format Work Day Date / IoT Date as DD/MM/YYYY (date only)
+function formatWorkDayDate(dateStr) {
+    const d = parseDateFlexible(dateStr);
+    if (!d) return "-";
+    return formatDateToDDMMYYYY(d);
+}
+
+// Function to format DATE type to DD/MM/YYYY
+function formatDateToDDMMYYYY(dateStr) {
+    const d = parseDateFlexible(dateStr);
+    if (!d) return "-";
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 // Toast notification function
@@ -4053,7 +4253,7 @@ async function handleShiftScheduleFormSubmit(e) {
     }
 
     const newId = parseInt(document.getElementById("ss_id").value) || null;
-    
+
     const formData = {
         Plant: document.getElementById("ss_plant").value.trim(),
         Shift: document.getElementById("ss_shift").value,
@@ -4546,6 +4746,32 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // ==================== HOURLY REPORT FUNCTIONS ====================
 
+// Fetch most recent updated/created timestamp for HourlyReport (with filters)
+async function fetchHourlyReportMostRecentTimestamp({ dateFilter, shiftFilter, hideArchived }) {
+    if (!window.supabase) return null;
+    try {
+        let lastUpdatedQuery = window.supabase
+            .from("HourlyReport")
+            .select("updated_at, created_at")
+            .order("updated_at", { ascending: false, nulls: "last" })
+            .order("created_at", { ascending: false, nulls: "last" })
+            .limit(1);
+
+        if (dateFilter) lastUpdatedQuery = lastUpdatedQuery.eq("IoT Date", dateFilter);
+        if (shiftFilter) lastUpdatedQuery = lastUpdatedQuery.eq("Shift", shiftFilter);
+        if (hideArchived === true) lastUpdatedQuery = lastUpdatedQuery.eq("archived", false);
+
+        const { data, error } = await lastUpdatedQuery;
+        if (error) throw error;
+        if (data && data.length > 0) {
+            return data[0].updated_at || data[0].created_at || null;
+        }
+    } catch (err) {
+        console.warn("Could not fetch latest HourlyReport timestamp:", err.message);
+    }
+    return null;
+}
+
 // Load Hourly Report Table
 async function loadHourlyReportTable(page = 1) {
     console.log('📊 loadHourlyReportTable() started, page:', page);
@@ -4631,13 +4857,14 @@ async function loadHourlyReportTable(page = 1) {
             }
         };
         
-        const [mainResult, archiveResult] = await Promise.all([
+        const [mainResult, archiveResult, latestTimestamp] = await Promise.all([
             query
                 .order('"Work Day Date"', { ascending: false })
                 .order('"Shift"', { ascending: true })
                 .order('"Time"', { ascending: true })
                 .range(from, to),
-            getArchiveConfig()
+            getArchiveConfig(),
+            fetchHourlyReportMostRecentTimestamp({ dateFilter, shiftFilter, hideArchived })
         ]);
         
         console.log(`⚡ Parallel queries completed in ${(performance.now() - queryStart).toFixed(0)}ms`);
@@ -4710,7 +4937,7 @@ async function loadHourlyReportTable(page = 1) {
                         <td>${item["Cell Name"] || "-"}</td>
                         <td>${item["Cell Leader"] || "-"}</td>
                         <td>${archiveStatus}</td>
-                        <td>${item["IoT Date"] || "-"}</td>
+                        <td>${item["IoT Date"] ? formatWorkDayDate(item["IoT Date"]) : "-"}</td>
                     `;
                     tableBody.appendChild(row);
                 });
@@ -4720,7 +4947,7 @@ async function loadHourlyReportTable(page = 1) {
             updateHourlyReportPagination();
             
             // Update Last Updated timestamp
-            updateHourlyReportLastUpdated(data);
+            updateHourlyReportLastUpdated(data, latestTimestamp);
         } else {
             if (tableBody) tableBody.innerHTML = "";
             if (table) table.style.display = "none";
@@ -4781,29 +5008,35 @@ function updateHourlyReportPagination() {
     }
 }
 
+// Safely convert Supabase timestamp (with/without TZ) into Date
+function parseHourlyTimestamp(timestamp) {
+    if (!timestamp) return null;
+    let iso = String(timestamp);
+    if (!iso.includes("Z") && !iso.includes("+")) {
+        iso = iso + "Z";
+    }
+    const parsed = new Date(iso);
+    return isNaN(parsed.getTime()) ? null : parsed;
+}
+
 // Update Hourly Report Last Updated timestamp
-function updateHourlyReportLastUpdated(data) {
+function updateHourlyReportLastUpdated(data, latestTimestamp) {
     const lastUpdatedContainer = document.getElementById("hourlyReportLastUpdated");
     const lastUpdatedTime = document.getElementById("hourlyReportLastUpdatedTime");
     
     if (!lastUpdatedContainer || !lastUpdatedTime) return;
     
     // Find the most recent "updated_at" or "created_at" timestamp from the data
-    // This shows when the report was actually generated/modified, not the work day
-    let mostRecentDate = null;
+    // Prefer backend-fetched latest timestamp to include rows outside the current page
+    let mostRecentDate = parseHourlyTimestamp(latestTimestamp);
     
     if (data && data.length > 0) {
         for (const item of data) {
             // Use updated_at first, then created_at as fallback
             const timestamp = item["updated_at"] || item["created_at"] || item["Work Day Date"];
             if (timestamp) {
-                // Properly handle timezone - treat as UTC if no timezone indicator
-                let iso = String(timestamp);
-                if (!iso.includes("Z") && !iso.includes("+")) {
-                    iso = iso + "Z";
-                }
-                const itemDate = new Date(iso);
-                if (!mostRecentDate || itemDate > mostRecentDate) {
+                const itemDate = parseHourlyTimestamp(timestamp);
+                if (!mostRecentDate || (itemDate && itemDate > mostRecentDate)) {
                     mostRecentDate = itemDate;
                 }
             }
@@ -5333,10 +5566,17 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
         const dateFormatted = formatDateForReport(timestamp);
         
         // Get time group info from schedule
-        const timeGroupInfo = timeGroupMap[timeRange];
-        if (!timeGroupInfo) continue; // Skip if time range not in schedule
+        // Prefer IoT Shift; fall back to schedule; allow missing schedule entry
+        let timeGroupInfo = timeGroupMap[timeRange];
+        if (!timeGroupInfo) {
+            timeGroupInfo = {
+                shift: item["Shift"] || "",
+                availableTime: item["Available Time"] || 0,
+                plannedDownTime: item["Planned Down Time"] || 0
+            };
+        }
         
-        const shift = timeGroupInfo.shift || item["Shift"] || "";
+        const shift = item["Shift"] || timeGroupInfo.shift || "";
         const scheduleAvailableTime = timeGroupInfo.availableTime || 0; // Keep schedule time for reference
         const lossReason = item["Loss Reasons"] || "No Loss";
         const partCountPerCycle = (item["Part Count Per Cycle"] > 0) ? item["Part Count Per Cycle"] : 1;
@@ -5372,7 +5612,8 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
                 operatingTime: 0,
                 timestamps: [],
                 firstTimestamp: null,
-                lastTimestamp: null
+                lastTimestamp: null,
+                workDayDate: item["Work Day Date"] || null
             };
         }
         
@@ -5498,7 +5739,7 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
         const aTimeIndex = sortedTimeGroups.indexOf(aTimeRange);
         const bTimeIndex = sortedTimeGroups.indexOf(bTimeRange);
         if (aTimeIndex !== bTimeIndex) {
-            return aTimeIndex - bTimeIndex;
+        return aTimeIndex - bTimeIndex;
         }
         
         // Finally sort by first timestamp (for multiple settings within same hour)
@@ -5523,16 +5764,15 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
             finalLossReason = "Production Occurred";
         }
         
-        // Calculate Work Day Date based on first timestamp of this group
-        // Work day: 07:00 - 06:59 next day counts as same work day
-        const workDayDate = data.firstTimestamp ? getWorkDayDate(data.firstTimestamp) : now;
+        // Work Day Date: prefer IoT value, else derive from first timestamp
+        const workDayDate = data.workDayDate ? new Date(data.workDayDate) : (data.firstTimestamp ? getWorkDayDate(data.firstTimestamp) : now);
         
         reportRecords.push({
             "Plant": data.plant,
             "Machine Name": data.machineNo,
             "Sr No": srNo++,
             "Shift": data.shift,
-            "IoT Date": data.date,  // Calendar date from IoT timestamp
+            "IoT Date": formatDateForDB(data.firstTimestamp),  // DATE type: YYYY-MM-DD format
             "Time": data.timeRange,
             "Operator": data.operator,
             "Part No.": data.partNo,
@@ -5551,12 +5791,27 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
             "Loss Reasons": finalLossReason,
             "Cell Name": data.cellName,
             "Cell Leader": data.cellLeader,
-            "Work Day Date": workDayDate.toISOString(),  // Work day date (07:00-06:59 = same day)
+            "Work Day Date": formatDateForDB(workDayDate),  // DATE type: YYYY-MM-DD format
             "archived": false
         });
     }
     
     return reportRecords;
+}
+
+// Helper function to format date for PostgreSQL DATE type (YYYY-MM-DD)
+// Used when inserting into database
+function formatDateForDB(date) {
+    if (!date) return null;
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return null;
+    
+    // Get date in IST timezone
+    const istDate = new Date(d.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const year = istDate.getFullYear();
+    const month = String(istDate.getMonth() + 1).padStart(2, "0");
+    const day = String(istDate.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;  // PostgreSQL DATE format
 }
 
 // Helper function to format date for report (DD/MM/YYYY)
@@ -6663,8 +6918,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Convert date from YYYY-MM-DD to DD/MM/YYYY for filtering
             const dateValue = e.target.value;
             if (dateValue) {
-                const [year, month, day] = dateValue.split("-");
-                paginationState.hourlyReport.dateFilter = `${day}/${month}/${year}`;
+                // Keep YYYY-MM-DD format for PostgreSQL DATE type filtering
+                paginationState.hourlyReport.dateFilter = dateValue;
             } else {
                 paginationState.hourlyReport.dateFilter = "";
             }
@@ -6962,9 +7217,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (dateFilter) {
         dateFilter.addEventListener("change", (e) => {
-            // Convert date to DD/MM/YYYY format for filtering
-            const date = new Date(e.target.value);
-            paginationState.hourlyReport.dateFilter = formatDateForReport(date);
+            // Keep YYYY-MM-DD format for PostgreSQL DATE type filtering
+            paginationState.hourlyReport.dateFilter = e.target.value || "";
             paginationState.hourlyReport.currentPage = 1;
             loadHourlyReportTable(1);
         });

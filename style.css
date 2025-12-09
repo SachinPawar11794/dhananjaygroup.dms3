@@ -671,6 +671,47 @@ body {
     margin-bottom: 0.75rem;
 }
 
+.content-header-flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.content-header-text h2 {
+    margin: 0;
+}
+
+.header-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.info-chip {
+    display: flex;
+    flex-direction: column;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border-color, #e5e7eb);
+    border-radius: 10px;
+    background: var(--card-bg, #fff);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    min-width: 140px;
+}
+
+.info-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: 0.2rem;
+}
+
+.info-value {
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+}
+
 .content-header h2 {
     font-size: 1.5rem;
     font-weight: 700;

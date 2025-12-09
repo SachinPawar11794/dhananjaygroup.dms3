@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DMS - Dhananjay Manufacturing System</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%230ea5e9'/%3E%3Cstop offset='100%25' stop-color='%236366f1'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' rx='20' fill='url(%23g)'/%3E%3Ctext x='50' y='68' font-family='Arial Black' font-size='48' font-weight='900' fill='white' text-anchor='middle'%3EDMS%3C/text%3E%3C/svg%3E">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" />
     <link rel="stylesheet" href="style.css?v=20251205g" />
     <!-- Cache version: Update ?v= parameter when making CSS changes -->
 </head>
@@ -222,9 +222,21 @@
 
             <!-- Machine Settings Page -->
             <div id="settingsPage" class="page">
-                <div class="content-header">
-                    <h2>Machine Settings Overview</h2>
-                    <p class="subtitle">View and manage all machine settings configurations</p>
+                <div class="content-header content-header-flex">
+                    <div class="content-header-text">
+                        <h2>Machine Settings Overview</h2>
+                        <p class="subtitle">View and manage all machine settings configurations</p>
+                    </div>
+                    <div class="header-info" id="settingsHeaderInfo">
+                        <div class="info-chip">
+                            <span class="info-label">Work Day Date</span>
+                            <span class="info-value" id="settingsWorkDayDate">--</span>
+                        </div>
+                        <div class="info-chip">
+                            <span class="info-label">Current Shift</span>
+                            <span class="info-value" id="settingsCurrentShift">--</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Add New Settings button moved below heading -->
@@ -688,20 +700,20 @@
 
                 <div style="display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; justify-content: space-between;">
                     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
-                        <button class="btn-primary" id="generateHourlyReportBtn" style="flex-shrink: 0;">
-                            <span class="btn-icon">📊</span>
-                            Generate Report
+                    <button class="btn-primary" id="generateHourlyReportBtn" style="flex-shrink: 0;">
+                        <span class="btn-icon">📊</span>
+                        Generate Report
+                    </button>
+                    <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
+                        <button class="btn-secondary" id="archiveOldReportsBtn" title="Archive old reports" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                            <span class="btn-icon">📦</span>
+                            Archive
                         </button>
-                        <div style="display: flex; gap: 0.5rem; flex-shrink: 0;">
-                            <button class="btn-secondary" id="archiveOldReportsBtn" title="Archive old reports" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
-                                <span class="btn-icon">📦</span>
-                                Archive
-                            </button>
-                            <button class="btn-secondary" id="archiveConfigBtn" title="Archive settings" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
-                                <span class="btn-icon">⚙️</span>
-                                Settings
-                            </button>
-                        </div>
+                        <button class="btn-secondary" id="archiveConfigBtn" title="Archive settings" style="padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                            <span class="btn-icon">⚙️</span>
+                            Settings
+                        </button>
+                    </div>
                     </div>
                     <div style="display: flex; gap: 1.5rem; align-items: center; flex-wrap: wrap;">
                         <div id="hourlyReportLastUpdated" class="last-updated-info" style="display: none;">
@@ -1743,10 +1755,10 @@
         // Wait for Supabase UMD to be available
         function initSupabase() {
             if (typeof supabase !== 'undefined' && supabase.createClient) {
-                // Supabase Configuration
-                const supabaseUrl = "https://tzoloagoaysipwxuyldu.supabase.co";
-                const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6b2xvYWdvYXlzaXB3eHV5bGR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MDM3MzIsImV4cCI6MjA3ODk3OTczMn0.BwC-uFnlkWtaGNVEee4VFuL-trsdz1aawDC77F3afWk";
-                
+        // Supabase Configuration
+        const supabaseUrl = "https://tzoloagoaysipwxuyldu.supabase.co";
+        const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6b2xvYWdvYXlzaXB3eHV5bGR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MDM3MzIsImV4cCI6MjA3ODk3OTczMn0.BwC-uFnlkWtaGNVEee4VFuL-trsdz1aawDC77F3afWk";
+        
                 // Create Supabase client with explicit auth persistence
                 window.supabase = supabase.createClient(supabaseUrl, supabaseAnonKey, {
                     auth: {
@@ -1757,13 +1769,13 @@
                         detectSessionInUrl: true
                     }
                 });
-                
-                // Mark as ready
-                window.supabaseReady = true;
-                
-                // Dispatch event when ready
-                window.dispatchEvent(new CustomEvent('supabaseReady'));
-                
+        
+        // Mark as ready
+        window.supabaseReady = true;
+        
+        // Dispatch event when ready
+        window.dispatchEvent(new CustomEvent('supabaseReady'));
+        
                 console.log('✅ Supabase initialized via UMD (works on all browsers)');
                 return true;
             }
