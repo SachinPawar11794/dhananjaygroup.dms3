@@ -251,9 +251,14 @@ BEGIN
                      CASE WHEN (g.first_ts AT TIME ZONE 'Asia/Kolkata')::time < time '07:00'
                           THEN ((g.first_ts AT TIME ZONE 'Asia/Kolkata')::date - 1)
                           ELSE (g.first_ts AT TIME ZONE 'Asia/Kolkata')::date
-                     END) AS work_day_date_final,
-            to_char((g.first_ts AT TIME ZONE 'Asia/Kolkata')::date, 'YYYY-MM-DD') AS iot_date_bucket
+                     END) AS work_day_date_final
         FROM grouped g
+    ),
+    final_with_iot_bucket AS (
+        SELECT
+            f.*,
+            f.work_day_date_final AS iot_date_bucket
+        FROM final_rows f
     ),
     sorted AS (
         SELECT
@@ -261,11 +266,11 @@ BEGIN
             ROW_NUMBER() OVER (
                 ORDER BY f.iot_date_bucket, f.time_range, f.machine_no
             ) AS sr_no
-        FROM final_rows f
+        FROM final_with_iot_bucket f
     ),
     distinct_dates AS (
         SELECT DISTINCT f.iot_date_bucket::date AS iot_date
-        FROM final_rows f
+        FROM final_with_iot_bucket f
     ),
     deleted AS (
         DELETE FROM "HourlyReport" hr
