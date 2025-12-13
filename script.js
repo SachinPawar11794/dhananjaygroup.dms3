@@ -2227,18 +2227,24 @@ async function loadSettingsTable(page = 1) {
 
         if (allError) throw allError;
 
-        // Figure out current work day and shift to scope aggregates
-        const currentWorkDay = getWorkDayDateForDB(new Date());
-
+        // Get current work day and shift from settings table
+        let currentWorkDay = null;
         let currentShift = null;
+
         try {
-            const { data: shiftRows } = await window.supabase
-                .from("ShiftSchedule")
-                .select("Time,Shift")
-                .order("Time", { ascending: true });
-            currentShift = getCurrentShiftFromSchedule(shiftRows);
+            const { data: settingsData, error: settingsError } = await window.supabase
+                .from("settings")
+                .select("current_shift, current_work_day")
+                .not("current_shift", "is", null)
+                .not("current_work_day", "is", null)
+                .limit(1);
+
+            if (!settingsError && settingsData && settingsData.length > 0) {
+                currentWorkDay = settingsData[0].current_work_day;
+                currentShift = settingsData[0].current_shift;
+            }
         } catch (e) {
-            console.warn("Unable to determine current shift; aggregating without shift filter", e);
+            console.warn("Unable to get current shift and work day from settings; aggregating without filters", e);
         }
 
         // Aggregate target counts from HourlyReport filtered by work day + shift
@@ -4425,12 +4431,17 @@ async function processHourGroupData(iotData, timeGroups, timeGroupMap) {
         
         // Find matching time group from schedule
         for (const timeRange of timeGroups) {
-            // Skip undefined or invalid time ranges
-            if (!timeRange || typeof timeRange !== 'string') continue;
+            // Skip undefined, null, empty, or invalid time ranges
+            if (!timeRange || typeof timeRange !== 'string' || timeRange.trim() === '' || !timeRange.includes(' - ')) continue;
 
             const [startTime, endTime] = timeRange.split(" - ");
+            if (!startTime || !endTime) continue;
+
             const [startHour, startMin] = startTime.split(":").map(Number);
             const [endHour, endMin] = endTime.split(":").map(Number);
+
+            // Ensure all parts are valid numbers
+            if (isNaN(startHour) || isNaN(startMin) || isNaN(endHour) || isNaN(endMin)) continue;
             
             let startMinutes = startHour * 60 + startMin;
             let endMinutes = endHour * 60 + endMin;
@@ -4678,26 +4689,34 @@ async function updateSettingsHeaderInfo() {
     const workDayEl = document.getElementById("settingsWorkDayDate");
     const shiftEl = document.getElementById("settingsCurrentShift");
     if (!workDayEl || !shiftEl) return;
-    
+
     // Default placeholders
     workDayEl.textContent = "--";
     shiftEl.textContent = "Loading...";
-    
-    // Work day date based on 07:00-06:59 rule
-    workDayEl.textContent = getWorkDayDateForDB(new Date()) || "--";
-    
+
     try {
+        // Get current shift and work day date directly from settings table
         const { data, error } = await window.supabase
-            .from("ShiftSchedule")
-            .select("Time,Shift")
-            .order("Time", { ascending: true });
-        
+            .from("settings")
+            .select("current_shift, current_work_day")
+            .not("current_shift", "is", null)
+            .not("current_work_day", "is", null)
+            .limit(1);
+
         if (error) throw error;
-        
-        const currentShift = getCurrentShiftFromSchedule(data);
-        shiftEl.textContent = currentShift || "Not Set";
+
+        // Display the values from settings table
+        if (data && data.length > 0) {
+            const setting = data[0];
+            workDayEl.textContent = setting.current_work_day ? formatWorkDayDate(setting.current_work_day) : "--";
+            shiftEl.textContent = setting.current_shift || "Not Set";
+        } else {
+            workDayEl.textContent = "--";
+            shiftEl.textContent = "Not Set";
+        }
     } catch (err) {
-        console.warn("Unable to load current shift info:", err);
+        console.warn("Unable to load current shift and work day info from settings:", err);
+        workDayEl.textContent = "--";
         shiftEl.textContent = "Unavailable";
     }
 }
