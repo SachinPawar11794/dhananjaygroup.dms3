@@ -1179,6 +1179,8 @@ function initializeModal() {
         document.getElementById("settingsEditId").value = "";
         const modalTitle = document.getElementById("settingsModalTitle");
         if (modalTitle) modalTitle.textContent = "Add Machine Settings";
+        // Clear current editing setting to avoid stale references
+        currentEditingSetting = null;
     }
 
     if (closeBtn) closeBtn.addEventListener("click", closeModal);
@@ -1443,10 +1445,19 @@ async function openEditSettingsModal(setting) {
     // Reset auto-populate flag to allow fresh setup
     autoPopulateListenersSetup = false;
     
+    // Remember current editing setting for later re-application after dropdown rebuilds
+    currentEditingSetting = setting;
     // Load dropdowns first
     await loadProcessMasterDropdowns();
     
     // Populate form with setting data
+    // DEBUG: log incoming setting to help diagnose missing combined Part value
+    console.debug("DEBUG openEditSettingsModal - setting:", setting);
+    try {
+        console.debug("DEBUG openEditSettingsModal - part_no:", setting.part_no, "part_name:", setting.part_name);
+    } catch (e) {
+        console.debug("DEBUG openEditSettingsModal - cannot read part fields:", e);
+    }
     document.getElementById("settingsEditId").value = setting.id || "";
     document.getElementById("plant").value = setting.plant || "";
     document.getElementById("machine").value = setting["Machine No."] || "";
@@ -1469,6 +1480,11 @@ async function openEditSettingsModal(setting) {
     } else if (partCombinedInput) {
         partCombinedInput.value = "";
     }
+
+    // Ensure Choices.js instance reflects the programmatic value.
+    // Choices maintains internal state and dropdown options may be rebuilt after this call,
+    // so we abstract the selection logic into a helper that can be re-run after updates.
+    applyPartCombinedSelection(setting);
     
     document.getElementById("operation").value = setting.operation || "";
     document.getElementById("cycle_time").value = setting.cycle_time || "";
@@ -1526,6 +1542,88 @@ async function openEditSettingsModal(setting) {
 let processMasterData = [];
 // Choices.js instance for Part No. / Part Name dropdown
 let partCombinedChoices = null;
+// Currently editing setting (used to re-apply selection after choices are rebuilt)
+let currentEditingSetting = null;
+
+// Helper: select/apply Part No./Part Name combined selection for a given setting
+function applyPartCombinedSelection(setting) {
+    const partCombinedInput = document.getElementById("part_combined");
+    const partNoHidden = document.getElementById("part_no");
+    const partNameHidden = document.getElementById("part_name");
+
+    if (!partCombinedInput) return;
+
+    // Ensure hidden fields are set
+    if (partNoHidden) partNoHidden.value = setting.part_no || "";
+    if (partNameHidden) partNameHidden.value = setting.part_name || "";
+
+    // DEBUG: log current options count and sample values
+    try {
+        const opts = Array.from(partCombinedInput.options || []).slice(0, 10).map(o => (o.value || o.text || "").trim());
+        console.debug("DEBUG applyPartCombinedSelection - optionsCount:", (partCombinedInput.options || []).length, "sampleOptions:", opts);
+    } catch (e) {
+        console.debug("DEBUG applyPartCombinedSelection - error reading options:", e);
+    }
+
+    const displayVal = (setting.part_no && setting.part_name) ? `${setting.part_no} - ${setting.part_name}` :
+        (setting.part_no || setting.part_name || "");
+
+    const desiredPartNo = (setting.part_no || "").trim();
+    const desiredPartName = (setting.part_name || "").trim();
+
+    // Try to match an existing option
+    let matchedOptionValue = null;
+    try {
+        for (let i = 0; i < partCombinedInput.options.length; i++) {
+            const opt = partCombinedInput.options[i];
+            const optVal = (opt.value || opt.text || "").trim();
+            if (!optVal) continue;
+            if (displayVal && optVal === displayVal) {
+                matchedOptionValue = optVal;
+                break;
+            }
+            if (desiredPartNo && desiredPartName && optVal.includes(desiredPartNo) && optVal.includes(desiredPartName)) {
+                matchedOptionValue = optVal;
+                break;
+            }
+            if (desiredPartNo && optVal.startsWith(desiredPartNo)) {
+                matchedOptionValue = optVal;
+                break;
+            }
+        }
+    } catch (err) {
+        console.warn("Error while searching options for Part combined value:", err);
+    }
+
+    const finalValue = matchedOptionValue || displayVal;
+
+    try {
+        // Set underlying input value
+        partCombinedInput.value = finalValue;
+    } catch (err) {
+        // ignore
+    }
+
+    // Notify Choices.js if present (try common APIs), otherwise trigger change
+    if (typeof partCombinedChoices !== "undefined" && partCombinedChoices) {
+        try {
+            if (matchedOptionValue && typeof partCombinedChoices.setChoiceByValue === "function") {
+                partCombinedChoices.setChoiceByValue(matchedOptionValue);
+            } else if (typeof partCombinedChoices.setValue === "function") {
+                partCombinedChoices.setValue([finalValue]);
+            } else if (typeof partCombinedChoices._addItem === "function") {
+                // older internal API
+                partCombinedChoices._addItem(finalValue);
+            } else {
+                partCombinedInput.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } catch (err) {
+            partCombinedInput.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    } else {
+        partCombinedInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+}
 
 // ============================
 // TASK MANAGER (EMPLOYEE CHECKLIST)
@@ -2066,6 +2164,12 @@ async function loadProcessMasterDropdowns() {
                 "label",
                 true
             );
+            // Re-apply selection for the currently editing setting (if any)
+            try {
+                if (currentEditingSetting) applyPartCombinedSelection(currentEditingSetting);
+            } catch (err) {
+                console.debug("DEBUG: applyPartCombinedSelection failed after setChoices:", err);
+            }
         }
         
         // Setup behavior: update hidden fields when selection changes
@@ -2228,6 +2332,12 @@ function updatePartDropdowns() {
         "label",
         true
     );
+    // Re-apply selection for the currently editing setting (if any)
+    try {
+        if (currentEditingSetting) applyPartCombinedSelection(currentEditingSetting);
+    } catch (err) {
+        console.debug("DEBUG: applyPartCombinedSelection failed after updatePartDropdowns.setChoices:", err);
+    }
 }
 
 // Update Operation dropdown based on selected Part No./Part Name
