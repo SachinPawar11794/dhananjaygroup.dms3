@@ -675,7 +675,15 @@ function navigateToHash(hash, addToHistory = true) {
                 { label: "Machine Settings" }
             ];
             if (openFormBtn) openFormBtn.style.display = "flex";
-            loadSettingsTable();
+            try {
+                import('/src/features/machine-settings/index.js').then(mod => {
+                    if (mod && typeof mod.initFeature === 'function') {
+                        mod.initFeature(document.getElementById('settingsPage'));
+                    }
+                }).catch(err => console.warn('Failed to load machine-settings feature', err));
+            } catch (e) {
+                console.warn('Dynamic import not supported for machine-settings', e);
+            }
             updateSettingsHeaderInfo();
         } else if (page === "process-master") {
             document.getElementById("processMasterPage")?.classList.add("active");
@@ -685,7 +693,15 @@ function navigateToHash(hash, addToHistory = true) {
                 { label: "Process Master" }
             ];
             if (openFormBtn) openFormBtn.style.display = "none";
-            loadProcessMasterTable();
+            try {
+                import('/src/features/process-master/index.js').then(mod => {
+                    if (mod && typeof mod.initFeature === 'function') {
+                        mod.initFeature(document.getElementById('processMasterPage'));
+                    }
+                }).catch(err => console.warn('Failed to load process-master feature', err));
+            } catch (e) {
+                console.warn('Dynamic import not supported for process-master', e);
+            }
         } else if (page === "workcenter-master") {
             document.getElementById("workcenterMasterPage")?.classList.add("active");
             title = "PMS";
@@ -694,7 +710,15 @@ function navigateToHash(hash, addToHistory = true) {
                 { label: "Work Center Master" }
             ];
             if (openFormBtn) openFormBtn.style.display = "none";
-            loadWorkCenterMasterTable();
+            try {
+                import('/src/features/work-center/index.js').then(mod => {
+                    if (mod && typeof mod.initFeature === 'function') {
+                        mod.initFeature(document.getElementById('workcenterMasterPage'));
+                    }
+                }).catch(err => console.warn('Failed to load work-center feature', err));
+            } catch (e) {
+                console.warn('Dynamic import not supported for work-center', e);
+            }
         } else if (page === "iot-data") {
             document.getElementById("iotDataPage")?.classList.add("active");
             title = "PMS";
@@ -1631,7 +1655,18 @@ function applyPartCombinedSelection(setting) {
 
 // Load Task Manager table with pagination and search
 async function loadTaskManagerTable(page = 1) {
-    const tableBody = document.getElementById("taskManagerTableBody");
+    // Proxy to modular feature if available
+    try {
+        const mod = await import('/src/features/task-manager/index.js');
+        if (mod && typeof mod.initFeature === 'function') {
+            await mod.initFeature(document.getElementById('taskManagerPage'));
+            return;
+        }
+    } catch (err) {
+        console.warn('Failed to load modular Task Manager feature, falling back to legacy (disabled).', err);
+    }
+    console.warn('Legacy Task Manager function disabled. Use src/features/task-manager/index.js (initFeature) instead.');
+    return;
     const loadingMessage = document.getElementById("taskManagerLoadingMessage");
     const table = document.getElementById("taskManagerTable");
     const pagination = document.getElementById("taskManagerPagination");
@@ -1872,8 +1907,8 @@ function formatDateOnly(dateStr) {
 
 // Update Task Manager pagination UI
 function updateTaskManagerPagination() {
-    const state = paginationState.taskManager;
-    const prevBtn = document.getElementById("taskManagerPrevBtn");
+    console.warn('Legacy Task Manager pagination disabled; handled by modular feature.');
+    return;
     const nextBtn = document.getElementById("taskManagerNextBtn");
     const pageNumbers = document.getElementById("taskManagerPageNumbers");
     const paginationInfo = document.getElementById("taskManagerPaginationInfo");
@@ -1907,7 +1942,7 @@ function updateTaskManagerPagination() {
     }
 }
 
-// Generate a simple Task ID based on timestamp
+// Generate a simple Task ID based on timestamp (fallback for legacy callers)
 function generateTaskId() {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -1919,9 +1954,11 @@ function generateTaskId() {
     return `TASK-${yyyy}${mm}${dd}-${hh}${mi}${ss}`;
 }
 
-// Handle Task form submission (create daily/other tasks with minimal automation)
+// Handle Task form submission (legacy handler disabled — modular feature handles forms)
 async function handleTaskFormSubmit(event) {
-    event.preventDefault();
+    console.warn('Legacy Task form handler disabled; handled by src/features/task-manager.');
+    if (event && typeof event.preventDefault === 'function') event.preventDefault();
+    return;
 
     const plant = document.getElementById("tm_plant").value.trim();
     const name = document.getElementById("tm_name").value.trim();
@@ -2652,6 +2689,8 @@ const workcenterPaginationState = {
 
 // Function to load and display settings table with pagination
 async function loadSettingsTable(page = 1) {
+    console.warn('Legacy Machine Settings function disabled. Use src/features/machine-settings/index.js (initFeature) instead.');
+    return;
     perfTracker.start('Load Settings Table');
     
     const loadingMessage = document.getElementById("loadingMessage");

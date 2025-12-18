@@ -18,6 +18,16 @@ export class MachineSettingsService {
         return { data, count };
     }
 
+    static async getAllWithoutPagination() {
+        const { data, error } = await supabase
+            .from('settings')
+            .select('*')
+            .order('timestamp', { ascending: false });
+
+        if (error) throw error;
+        return data;
+    }
+
     static async getById(id) {
         const { data, error } = await supabase
             .from('settings')

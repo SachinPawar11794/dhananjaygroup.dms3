@@ -49,15 +49,14 @@ export async function initializeApp() {
  * Initialize authentication UI handlers
  */
 function initializeAuthentication() {
-    // This will be handled by the auth module
-    // Imported from the original script.js logic
-    import('../components/auth/auth.js').then(module => {
-        if (module.initializeAuthentication) {
+    // Dynamically import the core auth module (migrated from components)
+    import('./auth.js').then(module => {
+        if (module && typeof module.initializeAuthentication === 'function') {
             module.initializeAuthentication();
         }
-    }).catch(() => {
+    }).catch((err) => {
         // Fallback: initialize inline if module doesn't exist yet
-        console.warn('Auth component not found, using fallback');
+        console.warn('Auth module dynamic import failed, using fallback', err);
     });
 }
 

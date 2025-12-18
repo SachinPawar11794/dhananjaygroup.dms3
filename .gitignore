@@ -29,3 +29,14 @@ npm-debug.log*
 
 # Legacy files (remove after migration)
 # legacy/
+#
+# Exclude Arduino local package caches and other large local SDK dirs (Windows)
+AppData/Local/Arduino15/
+AppData/Local/Arduino15/**
+
+# Exclude any deeply nested SDK directories that cause long path errors on Windows
+**/AppData/Local/Arduino15/**
+
+# Temporary build artifacts
+build/
+out/

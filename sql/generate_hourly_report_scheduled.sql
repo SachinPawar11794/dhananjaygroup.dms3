@@ -210,7 +210,8 @@ BEGIN
         SELECT
             f.*,
             ROW_NUMBER() OVER (
-                ORDER BY f.iot_date_bucket, f.time_range, f.machine_no
+                PARTITION BY f.iot_date_bucket
+                ORDER BY f.time_range, f.machine_no
             ) AS sr_no
         FROM final_with_iot_bucket f
     ),
@@ -222,12 +223,12 @@ BEGIN
         DELETE FROM "HourlyReport" hr
         USING distinct_dates d
         WHERE (
-            -- Match date-typed rows
-            hr."IoT Date" = d.iot_date
+            -- Match date-typed rows using Work Day Date (natural key uses Work Day Date)
+            hr."Work Day Date" = d.iot_date
             -- Match text-typed or formatted rows (legacy)
-            OR hr."IoT Date"::text = to_char(d.iot_date, 'YYYY-MM-DD')
-            OR hr."IoT Date"::text = to_char(d.iot_date, 'DD/MM/YYYY')
-            OR hr."IoT Date"::text = to_char(d.iot_date, 'MM/DD/YYYY')
+            OR hr."Work Day Date"::text = to_char(d.iot_date, 'YYYY-MM-DD')
+            OR hr."Work Day Date"::text = to_char(d.iot_date, 'DD/MM/YYYY')
+            OR hr."Work Day Date"::text = to_char(d.iot_date, 'MM/DD/YYYY')
         )
           AND COALESCE(hr.archived, false) = false
         RETURNING 1

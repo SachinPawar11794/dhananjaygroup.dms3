@@ -11,7 +11,7 @@ export class WorkCenterMasterService {
         const { data, error, count } = await supabase
             .from('WorkCenterMaster')
             .select('*', { count: 'exact' })
-            .order('machine', { ascending: true })
+            .order('"Machine"', { ascending: true })
             .range(from, to);
 
         if (error) throw error;
@@ -22,7 +22,7 @@ export class WorkCenterMasterService {
         const { data, error } = await supabase
             .from('WorkCenterMaster')
             .select('*')
-            .order('machine', { ascending: true });
+            .order('"Machine"', { ascending: true });
 
         if (error) throw error;
         return data;
@@ -42,9 +42,9 @@ export class WorkCenterMasterService {
     static async getIoTEnabledMachines(plant = null) {
         let query = supabase
             .from('WorkCenterMaster')
-            .select('Machine, Plant')
-            .eq('IoT Enabled', true)
-            .order('Machine', { ascending: true });
+            .select('"Machine", "Plant"')
+            .eq('"IoT Enabled"', true)
+            .order('"Machine"', { ascending: true });
 
         if (plant) {
             query = query.eq('Plant', plant);

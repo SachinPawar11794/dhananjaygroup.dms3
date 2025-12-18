@@ -15,6 +15,13 @@ if (typeof window !== 'undefined') {
 // Wait for DOM and Supabase to be ready
 window.addEventListener("DOMContentLoaded", () => {
     // Wait for Supabase to be initialized
+    // Remove any stray hash fragments to keep path-based routing clean
+    if (window.location && window.location.hash) {
+        try {
+            window.history.replaceState({}, '', window.location.pathname + window.location.search);
+        } catch (e) { /* ignore */ }
+    }
+
     const checkSupabase = setInterval(() => {
         if (window.supabase) {
             clearInterval(checkSupabase);
