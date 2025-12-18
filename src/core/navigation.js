@@ -25,6 +25,17 @@ export class Navigation {
         }
     };
 
+    // Vite static feature loader map. Vite will replace these with optimized chunk loaders.
+    static FEATURE_LOADERS = import.meta.glob('../features/**/index.js');
+
+    static async loadFeatureModuleByPath(featurePath) {
+        const loader = this.FEATURE_LOADERS[featurePath];
+        if (!loader) {
+            throw new Error(`Feature module not found in import map: ${featurePath}`);
+        }
+        return await loader();
+    }
+
     static initialize() {
         this.initializeBrowserHistory();
         this.setupNavigationHandlers();
@@ -175,7 +186,7 @@ export class Navigation {
             try {
                 this._loadedFeatures = this._loadedFeatures || {};
                 if (module === 'task-manager' && !this._loadedFeatures['task-manager']) {
-                    import('../features/task-manager/index.js').then((mod) => {
+                    this.loadFeatureModuleByPath('../features/task-manager/index.js').then((mod) => {
                         if (mod && typeof mod.initFeature === 'function') {
                             mod.initFeature(targetPage);
                             this._loadedFeatures['task-manager'] = mod;
@@ -186,7 +197,7 @@ export class Navigation {
                 }
                 // Top-level User Management lazy-load
                 if (module === 'user-management' && !this._loadedFeatures['user-management']) {
-                    import('../features/user-management/index.js').then((mod) => {
+                    this.loadFeatureModuleByPath('../features/user-management/index.js').then((mod) => {
                         if (mod && typeof mod.initFeature === 'function') {
                             mod.initFeature(targetPage);
                             this._loadedFeatures['user-management'] = mod;
@@ -210,7 +221,7 @@ export class Navigation {
                     };
                     const featurePath = pageToFeature[page];
                     if (featurePath && !this._loadedFeatures[`pms:${page}`]) {
-                        import(featurePath).then((mod) => {
+                        this.loadFeatureModuleByPath(featurePath).then((mod) => {
                             if (mod && typeof mod.initFeature === 'function') {
                                 mod.initFeature(targetPage);
                                 this._loadedFeatures[`pms:${page}`] = mod;
@@ -236,7 +247,7 @@ export class Navigation {
                     const appFeaturePath = appSettingsFeatureMap[page] || '../features/app-settings/index.js';
                     const key = `app-settings:${page || 'index'}`;
                     if (appFeaturePath && !this._loadedFeatures[key]) {
-                        import(appFeaturePath).then((mod) => {
+                        this.loadFeatureModuleByPath(appFeaturePath).then((mod) => {
                             if (mod && typeof mod.initFeature === 'function') {
                                 mod.initFeature(targetPage);
                                 this._loadedFeatures[key] = mod;
