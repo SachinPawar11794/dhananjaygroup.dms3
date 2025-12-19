@@ -257,6 +257,9 @@ window.addEventListener("DOMContentLoaded", () => {
             if (!window.appInitialized) {
                 window.appInitialized = true;
             initializeApp();
+            // Branding may have been attempted earlier before Supabase was ready.
+            // Ensure we (re)load branding now that Supabase is confirmed ready.
+            if (typeof loadAppBranding === 'function') loadAppBranding();
             }
         } else {
             // Log if still waiting
@@ -293,6 +296,8 @@ window.addEventListener('supabaseReady', () => {
         if (!window.appInitialized) {
             window.appInitialized = true;
             initializeApp();
+            // Also reload branding now that Supabase is available
+            if (typeof loadAppBranding === 'function') loadAppBranding();
         }
     }
 });
@@ -8891,9 +8896,16 @@ let currentBranding = { ...defaultBranding };
 
 // Load branding settings from Supabase
 async function loadAppBranding() {
-    if (!window.supabase) {
-        console.log('Supabase not available, using default branding');
-        applyBranding(defaultBranding);
+    // If Supabase isn't ready yet, wait for the supabaseReady event instead of
+    // applying defaults immediately (which hides custom branding).
+    if (!window.supabase || !window.supabase.auth) {
+        console.log('Supabase not ready, deferring branding until supabaseReady event');
+        if (typeof window !== 'undefined') {
+            window.addEventListener('supabaseReady', () => {
+                // Defer to next tick to avoid reentrancy
+                setTimeout(() => { loadAppBranding(); }, 0);
+            }, { once: true });
+        }
         return;
     }
 
@@ -8922,6 +8934,8 @@ async function loadAppBranding() {
         applyBranding(defaultBranding);
     }
 }
+// Expose for manual console access and external callers
+if (typeof window !== 'undefined') window.loadAppBranding = loadAppBranding;
 
 // Apply branding to the UI
 function applyBranding(branding) {
@@ -8936,8 +8950,11 @@ function applyBranding(branding) {
     
     if (branding.app_logo_url) {
         if (sidebarLogoImg) {
+            // Hide until image actually loads to avoid broken/empty image flashes
+            sidebarLogoImg.style.display = 'none';
+            sidebarLogoImg.onload = () => { sidebarLogoImg.style.display = 'block'; };
+            sidebarLogoImg.onerror = () => { sidebarLogoImg.style.display = 'none'; };
             sidebarLogoImg.src = branding.app_logo_url;
-            sidebarLogoImg.style.display = 'block';
         }
         if (sidebarLogoDefault) sidebarLogoDefault.style.display = 'none';
     } else {
@@ -8956,8 +8973,10 @@ function applyBranding(branding) {
     
     if (branding.app_logo_url) {
         if (headerLogoImg) {
+            headerLogoImg.style.display = 'none';
+            headerLogoImg.onload = () => { headerLogoImg.style.display = 'block'; };
+            headerLogoImg.onerror = () => { headerLogoImg.style.display = 'none'; };
             headerLogoImg.src = branding.app_logo_url;
-            headerLogoImg.style.display = 'block';
         }
         if (headerLogoDefault) headerLogoDefault.style.display = 'none';
     } else {
@@ -8978,8 +8997,10 @@ function applyBranding(branding) {
     
     if (branding.app_logo_url) {
         if (loginLogoImg) {
+            loginLogoImg.style.display = 'none';
+            loginLogoImg.onload = () => { loginLogoImg.style.display = 'block'; };
+            loginLogoImg.onerror = () => { loginLogoImg.style.display = 'none'; };
             loginLogoImg.src = branding.app_logo_url;
-            loginLogoImg.style.display = 'block';
         }
         if (loginLogoDefault) loginLogoDefault.style.display = 'none';
     } else {
@@ -9053,8 +9074,10 @@ function updateBrandingPreview() {
 
     if (logoUrl) {
         if (previewLogoImg) {
+            previewLogoImg.style.display = 'none';
+            previewLogoImg.onload = () => { previewLogoImg.style.display = 'block'; };
+            previewLogoImg.onerror = () => { previewLogoImg.style.display = 'none'; };
             previewLogoImg.src = logoUrl;
-            previewLogoImg.style.display = 'block';
         }
         if (previewLogoDefault) previewLogoDefault.style.display = 'none';
     } else {

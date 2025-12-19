@@ -10,6 +10,7 @@ import { Modal } from './modal.js';
 import { updateUIForAuth } from './auth.js';
 import { handleEmailConfirmation } from './emailConfirmation.js';
 import { PlantFilter } from './plantFilter.js';
+import { initFeature as initAppSettings } from '../features/app-settings/index.js';
 
 /**
  * Initialize the entire application
@@ -41,6 +42,13 @@ export async function initializeApp() {
         PlantFilter.initialize();
     } catch (err) {
         console.warn('Failed to initialize PlantFilter', err);
+    }
+    
+    // Load global app settings (branding) so logo and app name are applied immediately
+    try {
+        await initAppSettings();
+    } catch (err) {
+        console.warn('Failed to initialize app settings (branding)', err);
     }
     
     // Listen for auth state changes
