@@ -44,13 +44,18 @@ export class Navigation {
     static initializeBrowserHistory() {
         // Handle browser back/forward buttons (history API)
         window.addEventListener('popstate', (event) => {
-            const path = (event.state && event.state.path) || window.location.pathname || '/pms/dashboard';
-            this.navigateToPath(path, false);
+            const path = (event.state && event.state.path) || window.location.pathname || '';
+            // Only navigate on popstate when there is a meaningful path (avoid forcing dashboard)
+            if (path && path !== '/') {
+                this.navigateToPath(path, false);
+            }
         });
 
-        // Initialize from current URL path (no hash). Default to /pms/dashboard
-        const initPath = window.location.pathname && window.location.pathname !== '/' ? window.location.pathname : '/pms/dashboard';
-        this.navigateToPath(initPath, false);
+        // Initialize from current URL path (no hash). Do not force a default dashboard route.
+        const initPath = window.location.pathname && window.location.pathname !== '/' ? window.location.pathname : '';
+        if (initPath) {
+            this.navigateToPath(initPath, false);
+        }
     }
 
     static setupNavigationHandlers() {

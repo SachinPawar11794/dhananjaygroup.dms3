@@ -610,7 +610,8 @@ function updateBreadcrumb(pathArray) {
 
 function getCurrentRoute() {
     const path = window.location.pathname.replace(/^\//, "");
-    return path || "pms/dashboard";
+    // Return empty string when no path is present so we don't force the PMS dashboard
+    return path || "";
 }
 
 // Navigate to a route with history management (path-based)
@@ -869,13 +870,19 @@ function initializeBrowserHistory() {
     
     // Handle initial route on page load (path-based)
     const initialRoute = getCurrentRoute();
-    const state = {
-        hash: "#" + initialRoute,
-        path: [],
-        title: ""
-    };
-    window.history.replaceState(state, "", "/" + initialRoute);
-    navigateToHash(initialRoute, false);
+    if (initialRoute && initialRoute !== "") {
+        const state = {
+            hash: "#" + initialRoute,
+            path: [],
+            title: ""
+        };
+        try {
+            window.history.replaceState(state, "", "/" + initialRoute);
+        } catch (e) { /* ignore */ }
+        navigateToHash(initialRoute, false);
+    } else {
+        // No initial route present — do not force navigation to PMS dashboard
+    }
 }
 
 // Load distinct Plant and Machine values for IoT filters
@@ -1303,7 +1310,7 @@ function openEditProcessMasterModal(item) {
     document.getElementById("pm_plant").value = item["Plant"] || "";
     document.getElementById("pm_sr_no").value = item["Sr. No."] || "";
     document.getElementById("pm_cell_name").value = item["Cell Name"] || "";
-    document.getElementById("pm_sap_code").value = item["SAP Code/ Part No."] || "";
+    document.getElementById("pm_sap_code").value = item["Part No."] || item["Part No"] || item.sap_code || "";
     document.getElementById("pm_part_name").value = item["Part Name"] || "";
     document.getElementById("pm_operation").value = item["Operation"] || "";
     document.getElementById("pm_cycle_time").value = item["Cycle Time per Piece"] || "";
@@ -1335,7 +1342,7 @@ async function handleProcessMasterFormSubmit() {
         "Plant": document.getElementById("pm_plant").value || null,
         "Sr. No.": document.getElementById("pm_sr_no").value ? parseInt(document.getElementById("pm_sr_no").value) : null,
         "Cell Name": document.getElementById("pm_cell_name").value || null,
-        "SAP Code/ Part No.": document.getElementById("pm_sap_code").value || null,
+        "Part No.": document.getElementById("pm_sap_code").value || null,
         "Part Name": document.getElementById("pm_part_name").value || null,
         "Operation": document.getElementById("pm_operation").value || null,
         "Cycle Time per Piece": document.getElementById("pm_cycle_time").value ? parseFloat(document.getElementById("pm_cycle_time").value) : null,
@@ -2126,7 +2133,7 @@ async function loadProcessMasterDropdowns() {
 
         // Get unique values for dropdowns
         const plants = [...new Set(data.map(item => item["Plant"]).filter(Boolean))].sort();
-        const partNos = [...new Set(data.map(item => item["SAP Code/ Part No."]).filter(Boolean))].sort();
+        const partNos = [...new Set(data.map(item => item["Part No."] || item["Part No"] || item.sap_code).filter(Boolean))].sort();
         const partNames = [...new Set(data.map(item => item["Part Name"]).filter(Boolean))].sort();
         const operations = [...new Set(data.map(item => item["Operation"]).filter(Boolean))].sort();
 
@@ -2156,7 +2163,7 @@ async function loadProcessMasterDropdowns() {
             // Create a map of unique Part No./Part Name combinations
             const partMap = new Map();
             data.forEach(item => {
-                const partNo = item["SAP Code/ Part No."] || item["SAP Code/Part No."] || "";
+                const partNo = item["Part No."] || item["Part No"] || item["SAP Code/ Part No."] || item["SAP Code/Part No."] || item.sap_code || "";
                 const partName = item["Part Name"] || "";
                 
                 if (partNo || partName) {
@@ -2336,7 +2343,7 @@ function updatePartDropdowns() {
     // Create a map of unique Part No./Part Name combinations from filtered data
     const partMap = new Map();
     filteredData.forEach(item => {
-        const partNo = item["SAP Code/ Part No."] || item["SAP Code/Part No."] || "";
+        const partNo = item["Part No."] || item["Part No"] || item["SAP Code/ Part No."] || item["SAP Code/Part No."] || item.sap_code || "";
         const partName = item["Part Name"] || "";
         
         if (partNo || partName) {
@@ -2411,7 +2418,7 @@ function updateOperationDropdown() {
     let filteredData = processMasterData;
     
     if (selectedPartNo) {
-        filteredData = filteredData.filter(item => item["SAP Code/ Part No."] === selectedPartNo);
+            filteredData = filteredData.filter(item => (item["Part No."] || item["Part No"] || item["SAP Code/ Part No."] || item.sap_code) === selectedPartNo);
     } else if (selectedPartName) {
         filteredData = filteredData.filter(item => item["Part Name"] === selectedPartName);
     }
@@ -2480,7 +2487,7 @@ function autoPopulateFromProcessMaster(triggerField) {
     if (selectedPartNo) {
         matchingRecord = processMasterData.find(item => 
             item["Plant"] === selectedPlant &&
-            item["SAP Code/ Part No."] === selectedPartNo &&
+            (item["Part No."] || item["Part No"] || item["SAP Code/ Part No."] || item.sap_code) === selectedPartNo &&
             item["Operation"] === selectedOperation
         );
     } else if (selectedPartName) {
@@ -3065,7 +3072,7 @@ function filterProcessMasterData(data, searchTerm) {
     const term = searchTerm.toLowerCase().trim();
     return data.filter(item => {
         const plant = (item["Plant"] ?? item.plant ?? "").toString().toLowerCase();
-        const partNo = (item["SAP Code/ Part No."] ?? item["SAP Code/Part No."] ?? item.sap_code ?? "").toString().toLowerCase();
+        const partNo = (item["Part No."] ?? item["Part No"] ?? item["SAP Code/ Part No."] ?? item["SAP Code/Part No."] ?? item.sap_code ?? "").toString().toLowerCase();
         const partName = (item["Part Name"] ?? item["PartName"] ?? item.part_name ?? "").toString().toLowerCase();
         const operation = (item["Operation"] ?? item.operation ?? "").toString().toLowerCase();
         const machine = (item["Machine No."] ?? item["Machine"] ?? item.machine ?? "").toString().toLowerCase();
@@ -3146,7 +3153,7 @@ async function loadProcessMasterTable(page = 1) {
                         <td>${srNo}</td>
                         <td>${item["Plant"] ?? item.plant ?? "-"}</td>
                         <td>${item["Cell Name"] ?? item["CellName"] ?? item.cell_name ?? "-"}</td>
-                        <td>${item["SAP Code/ Part No."] ?? item["SAP Code/Part No."] ?? item.sap_code ?? "-"}</td>
+                        <td>${item["Part No."] ?? item["Part No"] ?? item["SAP Code/ Part No."] ?? item.sap_code ?? "-"}</td>
                         <td>${item["Part Name"] ?? item["PartName"] ?? item.part_name ?? "-"}</td>
                         <td>${item["Operation"] ?? item.operation ?? "-"}</td>
                         <td>${item["Cycle Time per Piece"] ?? item["CycleTimePerPiece"] ?? item.cycle_time ?? "-"}</td>

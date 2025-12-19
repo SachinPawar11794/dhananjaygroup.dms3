@@ -16,16 +16,17 @@ function renderRows(data) {
             <td>${srNo}</td>
             <td>${item['Plant'] ?? item.plant ?? '-'}</td>
             <td>${item['Cell Name'] ?? item.cell_name ?? '-'}</td>
-            <td>${item['SAP Code/ Part No.'] ?? item.sap_code ?? '-'}</td>
+            <td>${item['Part No.'] ?? item.sap_code ?? '-'}</td>
             <td>${item['Part Name'] ?? item.part_name ?? '-'}</td>
             <td>${item['Operation'] ?? item.operation ?? '-'}</td>
             <td>${item['Cycle Time per Piece'] ?? item.cycle_time ?? '-'}</td>
             <td>${item['No. of Cavities in Tool'] ?? item.cavities ?? '-'}</td>
-            <td>${item['Machine No.'] ?? item.machine ?? '-'}</td>
+            <td>${item['Machine'] ?? item['Machine No.'] ?? item.machine ?? '-'}</td>
             <td>${item['No. of Workstations'] ?? item.workstations ?? '-'}</td>
             <td>${item['Inspection Applicability'] ?? item.inspection ?? '-'}</td>
             <td>${item['Mandays'] ?? item.mandays ?? '-'}</td>
             <td>${item['Cell Leader'] ?? item.cell_leader ?? '-'}</td>
+            <td>${item['Average Setup & Change Over Time (Minutes)'] ?? item['AverageSetupChangeOverTime'] ?? item.setup_time ?? '-'}</td>
             <td>${item['Batch Qty.'] ?? item.batch_qty ?? '-'}</td>
             <td>
                 <div class="action-buttons">
@@ -82,8 +83,8 @@ async function loadAndRender(page = 1) {
         if (term) {
             filtered = filtered.filter(item => {
                 const text = [
-                    item['Plant'], item['SAP Code/ Part No.'], item['Part Name'],
-                    item['Operation'], item['Machine No.'], item['Cell Name']
+                    item['Plant'], item['Part No.'], item['Part Name'],
+                    (item['Machine'] ?? item['Machine No.'] ?? item.machine), item['Operation'], item['Cell Name']
                 ].filter(Boolean).join(' ').toLowerCase();
                 return text.includes(term);
             });

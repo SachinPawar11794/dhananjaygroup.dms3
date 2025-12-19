@@ -1,10 +1,14 @@
 import { MachineSettingsService } from '../../services/machineSettingsService.js';
 import { WorkCenterMasterService } from '../../services/workCenterMasterService.js';
 import { supabase } from '../../config/supabase.js';
+import { Modal } from '../../core/modal.js';
 
 let currentPage = 1;
 let currentPageSize = 25;
 let attached = [];
+let processMasterData = [];
+let partCombinedChoices = null;
+let currentEditingSetting = null;
 
 function formatTs(ts) {
     if (!ts) return '-';
@@ -14,6 +18,18 @@ function formatTs(ts) {
     } catch (e) {
         return String(ts);
     }
+}
+
+// Helper to read multiple possible field names from objects returned by Supabase
+function getField(obj, names) {
+    for (const n of names) {
+        if (!obj) continue;
+        if (Object.prototype.hasOwnProperty.call(obj, n) && obj[n] !== null && obj[n] !== undefined) return obj[n];
+        // also try lowercase/underscore variants
+        const alt = n.replace(/\s+/g, '_').replace(/\./g, '').toLowerCase();
+        if (Object.prototype.hasOwnProperty.call(obj, alt) && obj[alt] !== null && obj[alt] !== undefined) return obj[alt];
+    }
+    return undefined;
 }
 
 async function loadAndRender(page = 1) {
@@ -203,6 +219,9 @@ async function loadAndRender(page = 1) {
             });
         }
 
+        // Keep reference to current editing setting when modal opened externally
+        currentEditingSetting = null;
+
         // Update pagination UI
         const paginationInfo = document.getElementById('settingsPaginationInfo');
         const prevBtn = document.getElementById('settingsPrevBtn');
@@ -235,6 +254,7 @@ function attachListeners() {
     const prevBtn = document.getElementById('settingsPrevBtn');
     const nextBtn = document.getElementById('settingsNextBtn');
     const pageSize = document.getElementById('settingsPageSize');
+    const plantSelect = document.getElementById('plant');
     if (prevBtn) {
         const h = () => {
             const statePage = currentPage > 1 ? currentPage - 1 : 1;
@@ -257,6 +277,60 @@ function attachListeners() {
         pageSize.addEventListener('change', h);
         attached.push({el:pageSize, ev:'change', fn:h});
     }
+
+    // Plant -> Machine dependency for dropdowns
+    if (plantSelect) {
+        const h = async () => {
+            const selectedPlant = plantSelect.value || null;
+            try {
+                await loadMachinesForPlant(selectedPlant);
+            } catch (err) {
+                console.error('Error loading machines for plant:', err);
+            }
+            const machineSelect = document.getElementById('machine');
+            if (machineSelect && machineSelect.value) {
+                const options = Array.from(machineSelect.options).map(opt => opt.value);
+                if (!options.includes(machineSelect.value)) machineSelect.value = "";
+            }
+        };
+        plantSelect.addEventListener('change', h);
+        attached.push({el:plantSelect, ev:'change', fn:h});
+    }
+    // Machine -> update part choices and operations
+    const machineSelect = document.getElementById('machine');
+    if (machineSelect) {
+        const mh = async () => {
+            try {
+                await initPartCombinedChoices();
+            } catch (err) {
+                console.error('Error initializing part choices on machine change:', err);
+            }
+            updateOperationDropdown();
+            clearAutoPopulatedFields();
+        };
+        machineSelect.addEventListener('change', mh);
+        attached.push({el:machineSelect, ev:'change', fn:mh});
+    }
+    // Operation -> auto-populate other fields
+    const operationSelect = document.getElementById('operation');
+    if (operationSelect) {
+        const oh = () => {
+            autoPopulateFromProcessMaster();
+        };
+        operationSelect.addEventListener('change', oh);
+        attached.push({el:operationSelect, ev:'change', fn:oh});
+    }
+
+    // Settings form submit handler
+    const settingsForm = document.getElementById('settingsForm');
+    if (settingsForm) {
+        const submitHandler = async (e) => {
+            e.preventDefault();
+            await submitSettingsForm();
+        };
+        settingsForm.addEventListener('submit', submitHandler);
+        attached.push({ el: settingsForm, ev: 'submit', fn: submitHandler });
+    }
 }
 
 export async function initFeature(container = null, options = {}) {
@@ -264,12 +338,472 @@ export async function initFeature(container = null, options = {}) {
     currentPageSize = 25;
     attached = [];
     attachListeners();
+    // Load Process Master data (for Part choices) and Plant/Machine dropdowns for the settings form
+    try { await loadProcessMasterData(); } catch (e) { console.debug('Failed to load Process Master data on init:', e); }
+    try { await loadPlantAndMachineDropdowns(); } catch (e) { console.debug('Failed to load plant/machine dropdowns on init:', e); }
     await loadAndRender(1);
+}
+
+// Load Plant dropdown and populate Machine dropdown for the selected plant
+async function loadPlantAndMachineDropdowns() {
+    try {
+        const plantSelect = document.getElementById('plant');
+        if (!plantSelect) return;
+
+        // Fetch all work center rows and extract unique plants
+        const rows = await WorkCenterMasterService.getAllWithoutPagination();
+        const plantValues = (rows || []).map(r => r['Plant'] ?? r.Plant).filter(Boolean);
+        const uniquePlants = Array.from(new Set(plantValues)).sort();
+
+        const currentValue = plantSelect.value;
+        plantSelect.innerHTML = '<option value="">Select Plant</option>';
+        uniquePlants.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            plantSelect.appendChild(opt);
+        });
+        if (currentValue) plantSelect.value = currentValue;
+
+        // Populate machine dropdown for current plant (or all IoT-enabled machines)
+        await loadMachinesForPlant(plantSelect.value || null);
+    } catch (err) {
+        console.error('Error loading plant dropdowns:', err);
+    }
+}
+
+// Load IoT-enabled machines (optionally filtered by plant) into Machine dropdown
+async function loadMachinesForPlant(selectedPlant = null) {
+    try {
+        const data = await WorkCenterMasterService.getIoTEnabledMachines(selectedPlant || null);
+        const machineSelect = document.getElementById('machine');
+        if (!machineSelect) return;
+        const currentValue = machineSelect.value;
+        if (data && data.length > 0) {
+            machineSelect.innerHTML = '<option value="">Select Machine</option>';
+            data.forEach(item => {
+                const value = item['Machine'] || item.Machine || '';
+                const opt = document.createElement('option');
+                opt.value = value;
+                opt.textContent = value;
+                machineSelect.appendChild(opt);
+            });
+            // Restore previous value if still present
+            if (currentValue && data.some(item => (item['Machine'] || item.Machine) === currentValue)) {
+                machineSelect.value = currentValue;
+            } else {
+                machineSelect.value = '';
+            }
+        } else {
+            // Show informative placeholder when no machines
+            if (selectedPlant) {
+                machineSelect.innerHTML = '<option value="">No IoT-enabled machines found for selected plant</option>';
+            } else {
+                machineSelect.innerHTML = '<option value="">No IoT-enabled machines found</option>';
+            }
+        }
+    } catch (err) {
+        console.error('Error loading machines for plant:', err);
+    }
+}
+
+// Load Process Master data for Parts/Operations and initialize Choices.js
+async function loadProcessMasterData() {
+    try {
+        const { data, error } = await supabase
+            .from('Process Master')
+            .select('*');
+        if (error) throw error;
+        processMasterData = data || [];
+        await initPartCombinedChoices();
+    } catch (err) {
+        console.error('Error loading Process Master data:', err);
+    }
+}
+
+// Initialize or update Choices.js for Part No. / Part Name field
+async function initPartCombinedChoices() {
+    try {
+        const selectEl = document.getElementById('part_combined');
+        if (!selectEl) return;
+
+        // Build choices filtered by selected Plant only (not Machine)
+        const selectedPlant = (document.getElementById('plant')?.value) || null;
+
+        console.debug('initPartCombinedChoices: processMasterData length=', (processMasterData || []).length, 'selectedPlant=', selectedPlant);
+
+        const filtered = (processMasterData || []).filter(item => {
+            const plantVal = getField(item, ['Plant','plant']);
+            if (selectedPlant && plantVal !== selectedPlant) return false;
+            return true;
+        });
+
+        console.debug('initPartCombinedChoices: filtered Process Master rows=', filtered.length);
+
+        // Create unique combinations of part no + part name
+        const partMap = new Map();
+        filtered.forEach(item => {
+            const partNo = getField(item, ['Part No.','Part_No','PartNo','part_no']) || '';
+            const partName = getField(item, ['Part Name','PartName','part_name']) || '';
+            const key = `${partNo}|||${partName}`;
+            if (!partMap.has(key) && (partNo || partName)) {
+                partMap.set(key, { partNo, partName });
+            }
+        });
+
+        const choices = Array.from(partMap.values())
+            .sort((a, b) => {
+                const aText = `${a.partNo} - ${a.partName}`;
+                const bText = `${b.partNo} - ${b.partName}`;
+                return aText.localeCompare(bText);
+            })
+            .map(({ partNo, partName }) => {
+                const display = partNo && partName ? `${partNo} - ${partName}` : (partNo || partName);
+                return { value: display, label: display };
+            });
+
+        // Ensure Choices.js is available globally (loaded via index.html)
+        if (typeof Choices === 'undefined') {
+            console.warn('Choices.js not found - part dropdown will be plain select');
+            selectEl.innerHTML = '<option value="">Select Part No. / Part Name</option>';
+            choices.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.value;
+                opt.textContent = c.label;
+                selectEl.appendChild(opt);
+            });
+            return;
+        }
+
+        if (!partCombinedChoices) {
+            partCombinedChoices = new Choices(selectEl, {
+                searchEnabled: true,
+                shouldSort: false,
+                itemSelectText: "",
+                removeItemButton: false,
+                placeholder: true,
+                placeholderValue: "Select Part No. / Part Name",
+            });
+        }
+
+        partCombinedChoices.clearChoices();
+        partCombinedChoices.setChoices(
+            [{ value: "", label: "Select Part No. / Part Name", selected: true, disabled: true }, ...choices],
+            "value",
+            "label",
+            true
+        );
+
+        if (!choices || choices.length === 0) {
+            // ensure user sees placeholder when no parts available for selected plant/machine
+            selectEl.innerHTML = '<option value="">No parts available</option>';
+        }
+
+        // Restore current selection if editing
+        try {
+            if (currentEditingSetting) {
+                applyPartCombinedSelection(currentEditingSetting);
+            }
+        } catch (err) {
+            console.debug('applyPartCombinedSelection failed:', err);
+        }
+
+        // Setup change handler
+        selectEl.removeEventListener?.('change', onPartCombinedChange);
+        selectEl.addEventListener('change', onPartCombinedChange);
+    } catch (err) {
+        console.error('initPartCombinedChoices error:', err);
+    }
+}
+
+function onPartCombinedChange(e) {
+    try {
+        const value = e.target.value;
+        const partNoHidden = document.getElementById('part_no');
+        const partNameHidden = document.getElementById('part_name');
+        if (!value) {
+            if (partNoHidden) partNoHidden.value = "";
+            if (partNameHidden) partNameHidden.value = "";
+            updateOperationDropdown();
+            clearAutoPopulatedFields();
+            return;
+        }
+        const [partNoRaw, ...rest] = value.split(' - ');
+        const partNo = (partNoRaw || '').trim();
+        const partName = rest.join(' - ').trim();
+        if (partNoHidden) partNoHidden.value = partNo;
+        if (partNameHidden) partNameHidden.value = partName;
+        updateOperationDropdown();
+        clearAutoPopulatedFields();
+    } catch (err) {
+        console.error('onPartCombinedChange error:', err);
+    }
+}
+
+// Update Operation dropdown based on selected plant/machine/part
+function updateOperationDropdown() {
+    try {
+        const operationSelect = document.getElementById('operation');
+        if (!operationSelect || !processMasterData || processMasterData.length === 0) return;
+        // Operation should be filtered by Plant + Part only (not Machine)
+        const selectedPlant = document.getElementById('plant')?.value || null;
+        const partNo = document.getElementById('part_no')?.value || null;
+        const partName = document.getElementById('part_name')?.value || null;
+
+        let filtered = processMasterData;
+        if (selectedPlant) filtered = filtered.filter(i => getField(i, ['Plant','plant']) === selectedPlant);
+        if (partNo) filtered = filtered.filter(i => getField(i, ['Part No.','Part_No','PartNo','part_no']) === partNo);
+        if (partName) filtered = filtered.filter(i => getField(i, ['Part Name','PartName','part_name']) === partName);
+
+        const ops = Array.from(new Set(filtered.map(i => getField(i, ['Operation','operation'])).filter(Boolean))).sort();
+
+        const currentVal = operationSelect.value;
+        operationSelect.innerHTML = '<option value="">Select Operation</option>';
+        ops.forEach(op => {
+            const opt = document.createElement('option');
+            opt.value = op;
+            opt.textContent = op;
+            operationSelect.appendChild(opt);
+        });
+        if (currentVal) operationSelect.value = currentVal;
+    } catch (err) {
+        console.error('updateOperationDropdown error:', err);
+    }
+}
+
+// Auto-populate fields (cycle_time, inspection_applicability, cell_name, cell_leader, workstations, mandays) when possible
+function autoPopulateFromProcessMaster() {
+    try {
+        if (!processMasterData || processMasterData.length === 0) return;
+        // Auto-populate from Process Master using Plant + Part + Operation (do not depend on Machine)
+        const selectedPlant = document.getElementById('plant')?.value || null;
+        const partNo = document.getElementById('part_no')?.value || null;
+        const partName = document.getElementById('part_name')?.value || null;
+        const operation = document.getElementById('operation')?.value || null;
+
+        let filtered = processMasterData;
+        if (selectedPlant) filtered = filtered.filter(i => getField(i, ['Plant','plant']) === selectedPlant);
+        if (partNo) filtered = filtered.filter(i => getField(i, ['Part No.','Part_No','PartNo','part_no']) === partNo);
+        if (partName) filtered = filtered.filter(i => getField(i, ['Part Name','PartName','part_name']) === partName);
+        if (operation) filtered = filtered.filter(i => getField(i, ['Operation','operation']) === operation);
+
+        if (!filtered || filtered.length === 0) return;
+        const src = filtered[0];
+        const cycleTimeInput = document.getElementById('cycle_time');
+        const inspectionInput = document.getElementById('inspection_applicability');
+        const cellNameInput = document.getElementById('cell_name');
+        const cellLeaderInput = document.getElementById('cell_leader');
+        const workstationsInput = document.getElementById('workstations');
+        const mandaysInput = document.getElementById('mandays');
+        const partCountInput = document.getElementById('part_count_per_cycle');
+
+        if (cycleTimeInput) cycleTimeInput.value = getField(src, ['Cycle Time per Piece','Cycle Time','cycle_time']) ?? "";
+        if (inspectionInput) inspectionInput.value = getField(src, ['Inspection Applicability','inspection_applicability']) ?? "";
+        if (cellNameInput) cellNameInput.value = getField(src, ['Cell Name','cell_name']) ?? "";
+        if (cellLeaderInput) cellLeaderInput.value = getField(src, ['Cell Leader','cell_leader']) ?? "";
+        if (workstationsInput) workstationsInput.value = getField(src, ['No. of Workstations','No_of_Workstations','workstations']) ?? "";
+        if (mandaysInput) mandaysInput.value = getField(src, ['Mandays','mandays']) ?? "";
+        // Part count per cycle - prefer "No. of Cavities in Tool" or "No_of_Cavities_in_Tool"
+        if (partCountInput) {
+            const partCountVal = getField(src, ['No. of Cavities in Tool','No_of_Cavities_in_Tool','No of Cavities in Tool','No. of Cavities','No_of_Cavities','no_of_cavities_in_tool']);
+            if (partCountVal !== undefined && partCountVal !== null && partCountVal !== '') {
+                partCountInput.value = partCountVal;
+                partCountInput.setAttribute('readonly', 'readonly');
+            }
+        }
+    } catch (err) {
+        console.error('autoPopulateFromProcessMaster error:', err);
+    }
+}
+
+function clearAutoPopulatedFields() {
+    const fields = ['cycle_time','part_count_per_cycle','inspection_applicability','cell_name','cell_leader','workstations','mandays'];
+    fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+}
+
+function applyPartCombinedSelection(setting) {
+    try {
+        if (!setting) return;
+        const partNo = setting.part_no || setting['Part No.'] || '';
+        const partName = setting.part_name || setting['Part Name'] || '';
+        const display = partNo && partName ? `${partNo} - ${partName}` : (partNo || partName);
+        if (partCombinedChoices && display) {
+            partCombinedChoices.setChoiceByValue(display);
+        } else {
+            const sel = document.getElementById('part_combined');
+            if (sel) sel.value = display;
+        }
+    } catch (err) {
+        console.error('applyPartCombinedSelection error:', err);
+    }
 }
 
 export function destroyFeature() {
     attached.forEach(({el,ev,fn})=>{ try{ el.removeEventListener(ev,fn);}catch(e){} });
     attached = [];
+}
+
+/**
+ * Minimal fallback to open the settings edit modal in the modular app.
+ * This mirrors the legacy `openEditSettingsModal` behavior enough for the edit button to work.
+ * It is intentionally lightweight and only sets form field values and opens the modal overlay.
+ */
+async function openEditSettingsModal(setting = {}) {
+    try {
+        // remember editing setting for part dropdown restore
+        currentEditingSetting = setting;
+        const modalTitle = document.getElementById("settingsModalTitle");
+        if (modalTitle) modalTitle.textContent = "Edit Machine Settings";
+
+        // Basic form fields - set if present
+        const editIdField = document.getElementById("settingsEditId");
+        if (editIdField) editIdField.value = setting.id || "";
+
+        const plantInput = document.getElementById("plant");
+        const machineInput = document.getElementById("machine");
+        const partNoHidden = document.getElementById("part_no");
+        const partNameHidden = document.getElementById("part_name");
+        const partCombinedInput = document.getElementById("part_combined");
+        const operationInput = document.getElementById("operation");
+        const cycleTimeInput = document.getElementById("cycle_time");
+
+        // Ensure Plant and Machine dropdowns are loaded before setting values
+        try {
+            await loadPlantAndMachineDropdowns();
+        } catch (e) {
+            console.debug("Failed to pre-load plant/machine dropdowns:", e);
+        }
+
+        if (plantInput) plantInput.value = setting.plant || setting.Plant || "";
+        if (machineInput) machineInput.value = setting['Machine No.'] || setting.machine || setting.Machine || "";
+        if (partNoHidden) partNoHidden.value = setting.part_no || setting['Part No.'] || "";
+        if (partNameHidden) partNameHidden.value = setting.part_name || setting['Part Name'] || "";
+        if (partCombinedInput) partCombinedInput.value = `${partNoHidden?.value || ''} ${partNameHidden?.value || ''}`.trim();
+        if (operationInput) operationInput.value = setting.operation || setting.Operation || "";
+        if (cycleTimeInput) cycleTimeInput.value = setting.cycle_time ?? setting.cycleTime ?? "";
+
+        // Re-initialize Part choices & operation list for the selected Plant+Machine+Part
+        try { await initPartCombinedChoices(); } catch (e) { console.debug('initPartCombinedChoices failed during edit open:', e); }
+        updateOperationDropdown();
+        autoPopulateFromProcessMaster();
+
+        // Open modal using shared Modal helper
+        Modal.open('modalOverlay');
+        // Prevent background scroll while modal is open
+        try { document.body.style.overflow = 'hidden'; } catch (e) { /* ignore */ }
+    } catch (err) {
+        console.error('openEditSettingsModal (modular) failed', err);
+    }
+}
+
+// Expose on window for legacy callers and for the code that checks `window.openEditSettingsModal`
+if (typeof window !== 'undefined' && typeof window.openEditSettingsModal !== 'function') {
+    window.openEditSettingsModal = openEditSettingsModal;
+}
+
+// Submit settings form (create or update)
+async function submitSettingsForm() {
+    const submitBtn = document.querySelector('#modalOverlay .btn-submit') || document.querySelector('.btn-submit');
+    const originalText = submitBtn ? submitBtn.textContent : null;
+    const editId = document.getElementById("settingsEditId")?.value || "";
+    const isEdit = !!editId;
+
+    try {
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = isEdit ? "Updating..." : "Saving...";
+        }
+
+        const machine = document.getElementById("machine")?.value || "";
+        // Build payload and coerce numeric fields to their proper types (or null)
+        const cycleTimeRaw = document.getElementById("cycle_time")?.value;
+        const partCountRaw = document.getElementById("part_count_per_cycle")?.value;
+        const workstationsRaw = document.getElementById("workstations")?.value;
+        const mandaysRaw = document.getElementById("mandays")?.value;
+
+        const data = {
+            plant: document.getElementById("plant")?.value || null,
+            "Machine No.": machine || null,
+            part_no: document.getElementById("part_no")?.value || null,
+            part_name: document.getElementById("part_name")?.value || null,
+            operation: document.getElementById("operation")?.value || null,
+            cycle_time: cycleTimeRaw !== undefined && cycleTimeRaw !== "" ? Number(cycleTimeRaw) : null,
+            part_count_per_cycle: partCountRaw !== undefined && partCountRaw !== "" ? Number(partCountRaw) : null,
+            inspection_applicability: document.getElementById("inspection_applicability")?.value || null,
+            cell_name: document.getElementById("cell_name")?.value || null,
+            cell_leader: document.getElementById("cell_leader")?.value || null,
+            workstations: workstationsRaw !== undefined && workstationsRaw !== "" ? Number(workstationsRaw) : null,
+            mandays: mandaysRaw !== undefined && mandaysRaw !== "" ? Number(mandaysRaw) : null,
+            tool_code: document.getElementById("tool_code")?.value || null,
+            operator_code: document.getElementById("operator_code")?.value || null,
+            loss_reason: document.getElementById("loss_reason")?.value || null
+        };
+
+        // If editing by id, perform update; otherwise UPSERT by plant + Machine No. to preserve legacy behavior
+        let result;
+        if (isEdit) {
+            result = await supabase
+                .from('settings')
+                .update(data)
+                .eq('id', parseInt(editId, 10))
+                .select()
+                .single();
+        } else {
+            // Use .select().single() to return a single object instead of an array
+            result = await supabase
+                .from('settings')
+                .upsert(data, { onConflict: 'plant,"Machine No."' })
+                .select()
+                .single();
+        }
+
+        if (result.error) throw result.error;
+        // Normalize numeric fields returned as strings to numbers for UI consistency
+        const savedRow = result.data || result;
+        const numericFields = ['cycle_time', 'part_count_per_cycle', 'workstations', 'mandays', 'target_count', 'actual_count'];
+        numericFields.forEach(field => {
+            if (savedRow && savedRow[field] !== undefined && savedRow[field] !== null && typeof savedRow[field] === 'string') {
+                const n = Number(savedRow[field]);
+                if (!Number.isNaN(n)) savedRow[field] = n;
+            }
+        });
+
+        // Show success toast if available
+        if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+            window.showToast(isEdit ? 'Settings updated successfully!' : 'Settings saved successfully!', 'success');
+        } else {
+            console.log(isEdit ? 'Settings updated' : 'Settings saved', savedRow);
+        }
+
+        // Close modal and reset
+        try {
+            Modal.close('modalOverlay');
+            document.body.style.overflow = '';
+            const form = document.getElementById('settingsForm');
+            if (form) form.reset();
+            document.getElementById("settingsEditId").value = "";
+        } catch (err) { /* ignore */ }
+
+        // Refresh table
+        await loadAndRender(currentPage || 1);
+
+        // Feedback
+    } catch (err) {
+        console.error('Error saving settings (modular):', err);
+        if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+            window.showToast('Error saving settings: ' + (err.message || err), 'error');
+        } else {
+            alert('Error saving settings: ' + (err.message || err));
+        }
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText || (isEdit ? 'Save Settings' : 'Save Settings');
+        }
+    }
 }
 
 

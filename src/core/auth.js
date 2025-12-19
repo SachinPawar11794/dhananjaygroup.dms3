@@ -91,7 +91,7 @@ export async function updateUIForAuth(session) {
             }
         }
 
-        // Route by role (map to the dashboard page; adjust if you add role-specific dashboard routes)
+        // Route by role (map to the dashboard page; only navigate if current path is root/login)
         const role = profile && profile.role ? profile.role : 'operator';
         const rolePathMap = {
             operator: '/pms/dashboard',
@@ -99,7 +99,11 @@ export async function updateUIForAuth(session) {
             admin: '/pms/dashboard'
         };
         try {
-            Navigation.navigateToPath(rolePathMap[role] || '/pms/dashboard');
+            const currentPath = (window.location && window.location.pathname) ? window.location.pathname : '';
+            const shouldAutoNavigate = currentPath === '' || currentPath === '/' || currentPath.includes('/login') || (loginPage && loginPage.style.display === 'flex');
+            if (shouldAutoNavigate) {
+                Navigation.navigateToPath(rolePathMap[role] || '/pms/dashboard');
+            }
         } catch (e) { /* navigation best-effort */ }
     } else {
         // User is not authenticated
@@ -136,8 +140,8 @@ export function initializeAuthentication() {
                     }
                     showToast("Logged out successfully", "success");
                     updateUIForAuth(null);
-                    // Navigate to dashboard home after logout
-                    try { window.history.replaceState(null, '', '/pms/dashboard'); } catch (e) {}
+                    // Navigate to app root after logout (do not force PMS dashboard)
+                    try { window.history.replaceState(null, '', '/'); } catch (e) {}
                 } catch (err) {
                     console.error("Logout error:", err);
                     showToast("Error logging out: " + (err.message || "Unknown error"), "error");
@@ -197,7 +201,7 @@ export function initializeAuthentication() {
                     const session = await AuthService.checkAuthState();
                     updateUIForAuth(session);
                     if (loginPage) loginPage.style.display = 'none';
-                    try { window.history.replaceState(null, '', '/pms/dashboard'); } catch (e) {}
+                    try { window.history.replaceState(null, '', window.location.pathname || '/'); } catch (e) {}
                     showToast('Login successful', 'success');
                 } catch (err) {
                     console.error('Login error:', err);
