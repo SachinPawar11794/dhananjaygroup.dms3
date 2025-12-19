@@ -49,8 +49,11 @@ async function loadAndRender(page = 1) {
         // Apply filters
         const plantFilter = document.getElementById('shiftSchedulePlantFilter')?.value || '';
         const shiftFilter = document.getElementById('shiftScheduleShiftFilter')?.value || '';
+        // Global plant selection (if set to a specific plant, it overrides local plant filters)
+        const globalPlant = (typeof window !== 'undefined' && window.globalPlant) ? String(window.globalPlant) : '';
+        const effectivePlant = (globalPlant && globalPlant !== 'ALL') ? globalPlant : plantFilter;
         let filtered = all;
-        if (plantFilter) filtered = filtered.filter(r => (readField(r, ['Plant','plant']) || '').toString() === plantFilter);
+        if (effectivePlant) filtered = filtered.filter(r => (readField(r, ['Plant','plant']) || '').toString() === effectivePlant);
         if (shiftFilter) filtered = filtered.filter(r => (readField(r, ['Shift','shift']) || '').toString() === shiftFilter);
 
         const pageSize = parseInt(document.getElementById('shiftSchedulePageSize')?.value || '25', 10) || 25;

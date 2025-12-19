@@ -31,6 +31,15 @@ export async function updateUIForAuth(session) {
         try { window.refreshProfile = profileStore.refreshProfile; } catch (e) {}
 
         if (userEmail) userEmail.textContent = (profile && (profile.full_name || profile.email)) || session.user.email || "";
+        // Also set sidebar user name for mobile sidebar
+        try {
+            const displayName = (profile && (profile.full_name || profile.email)) || session.user.email || "";
+            const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+            if (sidebarUserEmail) sidebarUserEmail.textContent = displayName;
+            // Ensure sidebar footer is present (CSS controls visibility)
+            const sidebarFooter = document.getElementById('sidebarFooter');
+            if (sidebarFooter) sidebarFooter.style.display = '';
+        } catch (err) { /* ignore */ }
 
         const isAdmin = profile && profile.role === 'admin';
         const isHod = profile && profile.role === 'hod';
@@ -113,6 +122,11 @@ export async function updateUIForAuth(session) {
         if (userMenu) userMenu.style.display = "none";
         if (loginBtn) loginBtn.style.display = "block";
         if (userManagementNavItem) userManagementNavItem.style.display = "none";
+        // Hide sidebar footer when logged out
+        try {
+            const sidebarFooter = document.getElementById('sidebarFooter');
+            if (sidebarFooter) sidebarFooter.style.display = 'none';
+        } catch (err) {}
     }
 }
 
@@ -150,6 +164,72 @@ export function initializeAuthentication() {
 
             logoutBtn.__mod_logout_handler = handler;
             logoutBtn.addEventListener('click', handler);
+        }
+        // Wire sidebar logout button to the same handler (mobile)
+        try {
+            const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
+            if (sidebarLogoutBtn) {
+                const prev = sidebarLogoutBtn.__mod_logout_handler;
+                if (prev) {
+                    try { sidebarLogoutBtn.removeEventListener('click', prev); } catch (e) {}
+                }
+                const sbHandler = (e) => {
+                    try {
+                        // Prefer invoking the header logout if present to reuse handler
+                        const headerLogout = document.getElementById('logoutBtn');
+                        if (headerLogout) {
+                            headerLogout.click();
+                            return;
+                        }
+                        // Fallback: call AuthService.signOut directly
+                        AuthService.signOut();
+                    } catch (err) {
+                        console.error('Sidebar logout failed', err);
+                    }
+                };
+                sidebarLogoutBtn.__mod_logout_handler = sbHandler;
+                sidebarLogoutBtn.addEventListener('click', sbHandler);
+            }
+        } catch (err) {
+            console.warn('sidebar logout wiring failed', err);
+        }
+        // Toggle user dropdown when username is clicked
+        try {
+            const userMenuButton = document.getElementById('userMenuButton');
+            const userDropdown = document.getElementById('userDropdown');
+            const userMenu = document.getElementById('userMenu');
+            if (userMenuButton && userDropdown) {
+                const toggle = (e) => {
+                    e && e.preventDefault && e.preventDefault();
+                    const isOpen = userDropdown.style.display === 'block';
+                    userDropdown.style.display = isOpen ? 'none' : 'block';
+                    userMenuButton.setAttribute('aria-expanded', String(!isOpen));
+                };
+                // remove existing handler if present
+                const prevToggle = userMenuButton.__mod_toggle_handler;
+                if (prevToggle) {
+                    try { userMenuButton.removeEventListener('click', prevToggle); } catch (e) {}
+                }
+                userMenuButton.__mod_toggle_handler = toggle;
+                userMenuButton.addEventListener('click', toggle);
+
+                // Close dropdown when clicking outside
+                const outsideHandler = (ev) => {
+                    try {
+                        if (!userMenu.contains(ev.target)) {
+                            userDropdown.style.display = 'none';
+                            userMenuButton.setAttribute('aria-expanded', 'false');
+                        }
+                    } catch (e) {}
+                };
+                // store so we can remove later if needed
+                if (!document.__mod_user_outside_handler) {
+                    document.__mod_user_outside_handler = outsideHandler;
+                    document.addEventListener('click', outsideHandler);
+                }
+            }
+        } catch (err) {
+            console.warn('user menu toggle wiring failed', err);
         }
     } catch (err) {
         console.error('initializeAuthentication error', err);

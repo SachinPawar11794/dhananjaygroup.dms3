@@ -9,6 +9,7 @@ import { Sidebar } from './sidebar.js';
 import { Modal } from './modal.js';
 import { updateUIForAuth } from './auth.js';
 import { handleEmailConfirmation } from './emailConfirmation.js';
+import { PlantFilter } from './plantFilter.js';
 
 /**
  * Initialize the entire application
@@ -34,6 +35,13 @@ export async function initializeApp() {
     
     // Initialize search functionality
     initializeSearchFunctionality();
+
+    // Initialize global plant selector (populates dropdown and emits events)
+    try {
+        PlantFilter.initialize();
+    } catch (err) {
+        console.warn('Failed to initialize PlantFilter', err);
+    }
     
     // Listen for auth state changes
     AuthService.onAuthStateChange((event, session) => {

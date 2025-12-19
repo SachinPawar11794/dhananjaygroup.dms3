@@ -9,6 +9,73 @@
     <link rel="stylesheet" href="/style.css?v=20251205g" />
     <!-- Cache version: Update ?v= parameter when making CSS changes -->
 </head>
+<style>
+    /* Header right-side improvements */
+    .header .header-content .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    .plant-select-container select {
+        padding: 6px 8px;
+        border-radius: 6px;
+        border: 1px solid #ddd;
+        background: #fff;
+    }
+    .connection-status { position: relative; display:flex; align-items:center; }
+    .connection-status .status-dot {
+        width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px;
+    }
+    .connection-status .status-dot.connected { background: #16a34a; }
+    .connection-status .status-dot.disconnected { background: #f43f5e; }
+    .user-menu { position: relative; }
+    .user-button {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 6px 8px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .user-dropdown {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 6px 16px rgba(16,24,40,0.08);
+        padding: 8px;
+        border-radius: 8px;
+        z-index: 50;
+    }
+    .user-dropdown .btn-secondary {
+        display: block;
+        width: 100%;
+    }
+    /* Sidebar footer for mobile user controls */
+    .sidebar-footer {
+        padding: 10px 12px;
+        border-top: 1px solid #eee;
+        background: #fafafa;
+        display: none;
+    }
+    .sidebar-user-email {
+        font-size: 14px;
+        color: #111827;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 160px;
+    }
+
+    /* Mobile: move user controls into sidebar and hide header user menu */
+    @media (max-width: 768px) {
+        .user-menu { display: none !important; }
+        .sidebar-footer { display: flex !important; align-items:center; justify-content:space-between; }
+    }
+</style>
 
 <body>
     <!-- Sidebar Navigation -->
@@ -50,6 +117,16 @@
                 </li>
             </ul>
         </nav>
+        <div class="sidebar-footer" id="sidebarFooter" style="display:none;">
+            <div class="sidebar-user" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                <div class="sidebar-user-info" style="display:flex;flex-direction:column;">
+                    <span class="sidebar-user-email" id="sidebarUserEmail"></span>
+                </div>
+                <div>
+                    <button class="btn-secondary" id="sidebarLogoutBtn">Logout</button>
+                </div>
+            </div>
+        </div>
     </aside>
 
     <!-- Main Layout -->
@@ -82,9 +159,21 @@
                     <div class="connection-status" id="connectionStatus" title="Connection status">
                         <span class="status-dot connected"></span>
                     </div>
+                    <!-- Global Plant Selection -->
+                    <div class="plant-select-container" id="plantSelectContainer" style="margin-left:12px;">
+                        <label for="globalPlantSelect" class="sr-only">Plant</label>
+                        <select id="globalPlantSelect" name="globalPlantSelect" aria-label="Select Plant">
+                            <option value="ALL">All Plants</option>
+                        </select>
+                    </div>
                     <div class="user-menu" id="userMenu" style="display: none;">
-                        <span class="user-email" id="userEmail"></span>
-                        <button class="btn-secondary" id="logoutBtn">Logout</button>
+                        <button id="userMenuButton" class="user-button" aria-haspopup="true" aria-expanded="false">
+                            <span class="user-email" id="userEmail"></span>
+                            <span class="caret">▾</span>
+                        </button>
+                        <div class="user-dropdown" id="userDropdown" style="display:none;">
+                            <button class="btn-secondary" id="logoutBtn">Logout</button>
+                        </div>
                     </div>
                     <button class="btn-primary" id="loginBtn" style="display: none;">Login</button>
                 </div>
