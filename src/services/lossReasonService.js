@@ -11,7 +11,7 @@ export class LossReasonService {
         const { data, error, count } = await supabase
             .from('LossReason')
             .select('*', { count: 'exact' })
-            .order('loss_reason', { ascending: true })
+            .order('"Loss Reason"', { ascending: true })
             .range(from, to);
 
         if (error) throw error;
@@ -22,7 +22,7 @@ export class LossReasonService {
         const { data, error } = await supabase
             .from('LossReason')
             .select('*')
-            .order('loss_reason', { ascending: true });
+            .order('"Loss Reason"', { ascending: true });
 
         if (error) throw error;
         return data;

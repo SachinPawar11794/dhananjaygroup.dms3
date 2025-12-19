@@ -2,6 +2,7 @@ import { MachineSettingsService } from '../../services/machineSettingsService.js
 import { WorkCenterMasterService } from '../../services/workCenterMasterService.js';
 import { supabase } from '../../config/supabase.js';
 import { Modal } from '../../core/modal.js';
+import { LossReasonService } from '../../services/lossReasonService.js';
 
 let currentPage = 1;
 let currentPageSize = 25;
@@ -9,6 +10,8 @@ let attached = [];
 let processMasterData = [];
 let partCombinedChoices = null;
 let currentEditingSetting = null;
+let lossReasonChoices = null;
+let lossReasonData = [];
 
 function formatTs(ts) {
     if (!ts) return '-';
@@ -331,6 +334,28 @@ function attachListeners() {
         settingsForm.addEventListener('submit', submitHandler);
         attached.push({ el: settingsForm, ev: 'submit', fn: submitHandler });
     }
+
+    // Close / Cancel buttons in modal
+    const cancelBtn = document.getElementById('cancelFormBtn');
+    const closeBtn = document.getElementById('closeModalBtn');
+    const modalOverlay = document.getElementById('modalOverlay');
+    const closeHandler = () => {
+        try {
+            // Use Modal helper to close
+            Modal.close('modalOverlay');
+        } catch (err) {
+            // fallback: manipulate classes directly
+            if (modalOverlay) modalOverlay.classList.remove('active');
+        }
+        try { document.body.style.overflow = ''; } catch (e) {}
+        const form = document.getElementById('settingsForm');
+        if (form) form.reset();
+        const editIdField = document.getElementById('settingsEditId');
+        if (editIdField) editIdField.value = "";
+        currentEditingSetting = null;
+    };
+    if (cancelBtn) { cancelBtn.addEventListener('click', closeHandler); attached.push({ el: cancelBtn, ev: 'click', fn: closeHandler }); }
+    if (closeBtn) { closeBtn.addEventListener('click', closeHandler); attached.push({ el: closeBtn, ev: 'click', fn: closeHandler }); }
 }
 
 export async function initFeature(container = null, options = {}) {
@@ -340,6 +365,7 @@ export async function initFeature(container = null, options = {}) {
     attachListeners();
     // Load Process Master data (for Part choices) and Plant/Machine dropdowns for the settings form
     try { await loadProcessMasterData(); } catch (e) { console.debug('Failed to load Process Master data on init:', e); }
+    try { await loadLossReasonDropdown(); } catch (e) { console.debug('Failed to load loss reasons on init:', e); }
     try { await loadPlantAndMachineDropdowns(); } catch (e) { console.debug('Failed to load plant/machine dropdowns on init:', e); }
     await loadAndRender(1);
 }
@@ -418,6 +444,38 @@ async function loadProcessMasterData() {
         await initPartCombinedChoices();
     } catch (err) {
         console.error('Error loading Process Master data:', err);
+    }
+}
+
+// Load LossReason data and initialize searchable dropdown
+async function loadLossReasonDropdown() {
+    try {
+        const selectEl = document.getElementById('loss_reason');
+        if (!selectEl) return;
+
+        // Fetch loss reasons (service handles ordering)
+        lossReasonData = await LossReasonService.getAllWithoutPagination();
+
+        const choices = (lossReasonData || []).map(r => {
+            const label = r['Loss Reason'] || r.loss_reason || r.name || '';
+            return { value: label, label };
+        }).sort((a,b)=> a.label.localeCompare(b.label));
+        // Always populate as a plain select (non-searchable) per request
+        selectEl.innerHTML = '<option value="">Select Loss Reason</option>';
+        choices.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.value;
+            opt.textContent = c.label;
+            selectEl.appendChild(opt);
+        });
+        // Restore selection when editing
+        try {
+            if (currentEditingSetting && currentEditingSetting.loss_reason) {
+                selectEl.value = currentEditingSetting.loss_reason;
+            }
+        } catch (e) { console.debug('Failed to restore loss reason selection', e); }
+    } catch (err) {
+        console.error('Error loading LossReason dropdown:', err);
     }
 }
 
@@ -689,6 +747,28 @@ async function openEditSettingsModal(setting = {}) {
         try { await initPartCombinedChoices(); } catch (e) { console.debug('initPartCombinedChoices failed during edit open:', e); }
         updateOperationDropdown();
         autoPopulateFromProcessMaster();
+        // Ensure Loss Reason dropdown exists and restore selection
+        try { await loadLossReasonDropdown(); } catch (e) { console.debug('loadLossReasonDropdown failed during edit open:', e); }
+        // Populate remaining editable fields from existing setting if present
+        const partCountInput = document.getElementById('part_count_per_cycle');
+        const inspectionInput = document.getElementById('inspection_applicability');
+        const cellNameInput = document.getElementById('cell_name');
+        const cellLeaderInput = document.getElementById('cell_leader');
+        const workstationsInput = document.getElementById('workstations');
+        const mandaysInput = document.getElementById('mandays');
+        const toolCodeInput = document.getElementById('tool_code');
+        const operatorCodeInput = document.getElementById('operator_code');
+        const lossReasonInput = document.getElementById('loss_reason');
+
+        if (partCountInput) partCountInput.value = setting.part_count_per_cycle ?? setting['part_count_per_cycle'] ?? setting['No. of Cavities in Tool'] ?? "";
+        if (inspectionInput) inspectionInput.value = setting.inspection_applicability ?? setting['Inspection Applicability'] ?? "";
+        if (cellNameInput) cellNameInput.value = setting.cell_name ?? setting['Cell Name'] ?? "";
+        if (cellLeaderInput) cellLeaderInput.value = setting.cell_leader ?? setting['Cell Leader'] ?? "";
+        if (workstationsInput) workstationsInput.value = setting.workstations ?? setting['No. of Workstations'] ?? "";
+        if (mandaysInput) mandaysInput.value = setting.mandays ?? setting['Mandays'] ?? "";
+        if (toolCodeInput) toolCodeInput.value = setting.tool_code ?? setting['Tool Code'] ?? "";
+        if (operatorCodeInput) operatorCodeInput.value = setting.operator_code ?? setting['Operator Code'] ?? "";
+        if (lossReasonInput) lossReasonInput.value = setting.loss_reason ?? setting['Loss Reason'] ?? "";
 
         // Open modal using shared Modal helper
         Modal.open('modalOverlay');
@@ -718,6 +798,19 @@ async function submitSettingsForm() {
         }
 
         const machine = document.getElementById("machine")?.value || "";
+        // Enforce Loss Reason required (form prevents native validation in modular flow)
+        const lossReasonRaw = document.getElementById("loss_reason")?.value?.trim();
+        if (!lossReasonRaw) {
+            if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+                window.showToast('Please enter Loss Reason', 'error');
+            } else {
+                alert('Please enter Loss Reason');
+            }
+            const lrEl = document.getElementById("loss_reason");
+            try { if (lrEl) lrEl.focus(); } catch (e) {}
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalText || (isEdit ? 'Save Settings' : 'Save Settings'); }
+            return;
+        }
         // Build payload and coerce numeric fields to their proper types (or null)
         const cycleTimeRaw = document.getElementById("cycle_time")?.value;
         const partCountRaw = document.getElementById("part_count_per_cycle")?.value;
