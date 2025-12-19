@@ -61,12 +61,22 @@ export class AuthService {
      */
     static async signOut() {
         try {
+            // Ensure a session exists before attempting signOut to avoid AuthSessionMissingError
+            const { data: { session } } = await supabase.auth.getSession();
+            if (!session) {
+                // Nothing to sign out; treat as successful sign out for UI purposes
+                return { success: true };
+            }
             const { error } = await supabase.auth.signOut();
             if (error) throw error;
             return { success: true };
         } catch (error) {
+            // If session is missing, swallow the error and return success for idempotency
+            if (error && (error.name === 'AuthSessionMissingError' || (error.message && error.message.includes('Auth session missing')))) {
+                return { success: true };
+            }
             console.error('Sign out error:', error);
-            return { success: false, error: error.message };
+            return { success: false, error: error.message || String(error) };
         }
     }
 

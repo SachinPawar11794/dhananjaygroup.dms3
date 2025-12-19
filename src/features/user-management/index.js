@@ -23,12 +23,13 @@ async function loadAndRender(page = 1) {
 
         // Try RPC to get all users combining auth.users + profiles (secure server-side)
         try {
-            const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_users_for_admin');
+            const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_users_for_admin_v2');
             if (rpcErr) throw rpcErr;
-            rows = rpcData || [];
+            // Normalize rows: some RPCs return user_id instead of id
+            rows = (rpcData || []).map(r => ({ ...(r || {}), id: (r && (r.id || r.user_id)) || undefined }));
             totalCount = rows.length;
         } catch (rpcError) {
-            console.warn('RPC get_all_users_for_admin failed, falling back to profiles:', rpcError);
+            console.warn('RPC get_all_users_for_admin_v2 failed, falling back to profiles:', rpcError);
             showToast("Admin RPC unavailable - showing profiles only. Run SYNC_ALL_AUTH_USERS_TO_PROFILES.sql or click Sync Users to import all users.", "warning");
             const { data, count, error } = await supabase
                 .from('profiles')
@@ -82,7 +83,13 @@ async function loadAndRender(page = 1) {
                 tr.querySelector('.btn-delete')?.addEventListener('click', async () => {
                     if (!confirm('Delete user?')) return;
                     try {
-                        await UserService.delete(user.id);
+                        const idToDelete = user?.id || user?.user_id || user?.userId || user?.uid || '';
+                        if (!idToDelete) {
+                            console.error('Attempt to delete user with missing id', user);
+                            (window.showToast || console.error)('Delete failed: missing user id', 'error');
+                            return;
+                        }
+                        await UserService.delete(idToDelete);
                         await loadAndRender(currentPage);
                     } catch (err) {
                         console.error('Delete user error', err);
@@ -151,6 +158,8 @@ function attachListeners() {
 export async function initFeature(container = null) {
     _attached = [];
     attachListeners();
+    // Initialize modal handlers for add/edit/close/submit behavior
+    initializeModalHandlers();
     currentPage = 1;
     await loadAndRender(1);
 }
@@ -160,4 +169,165 @@ export function destroyFeature() {
     _attached = [];
 }
 
+
+// Expose helpers for opening the user modal (used by legacy UI hooks)
+window.openAddUserModal = function() {
+    try {
+        const modalOverlay = document.getElementById('userModalOverlay');
+        const modalTitle = document.getElementById('userModalTitle');
+        const editId = document.getElementById('userEditId');
+        const emailField = document.getElementById('user_email');
+        const passwordField = document.getElementById('user_password');
+        const form = document.getElementById('userForm');
+
+        if (modalTitle) modalTitle.textContent = 'Add New User';
+        if (editId) editId.value = '';
+        if (form && form.dataset) delete form.dataset.editId;
+        if (emailField) { emailField.disabled = false; emailField.value = ''; }
+        if (passwordField) { passwordField.required = true; passwordField.value = ''; passwordField.placeholder = 'Minimum 6 characters'; }
+        if (form) form.reset();
+        if (modalOverlay) { modalOverlay.classList.add('active'); document.body.style.overflow = 'hidden'; }
+    } catch (e) {
+        console.error('openAddUserModal error', e);
+    }
+};
+
+window.openEditUserModal = function(user = {}) {
+    try {
+        console.debug('openEditUserModal called with user:', user);
+        const modalOverlay = document.getElementById('userModalOverlay');
+        const modalTitle = document.getElementById('userModalTitle');
+        const editId = document.getElementById('userEditId');
+        const emailField = document.getElementById('user_email');
+        const passwordField = document.getElementById('user_password');
+        const fullNameField = document.getElementById('user_full_name');
+        const roleField = document.getElementById('user_role');
+        const plantField = document.getElementById('user_plant');
+        const form = document.getElementById('userForm');
+
+        if (modalTitle) modalTitle.textContent = 'Edit User';
+        const userId = user?.id || user?.user_id || user?.userId || user?.uid || '';
+        if (editId) editId.value = userId;
+        if (form && userId) form.dataset.editId = userId;
+        console.debug('openEditUserModal set editId:', userId);
+        if (emailField) { emailField.disabled = true; emailField.value = user.email || ''; }
+        if (passwordField) { passwordField.required = false; passwordField.value = ''; passwordField.placeholder = ''; }
+        if (fullNameField) fullNameField.value = user.full_name || user.email?.split('@')[0] || '';
+        if (roleField) roleField.value = user.role || 'operator';
+        if (plantField) plantField.value = user.plant || '';
+
+        if (modalOverlay) { modalOverlay.classList.add('active'); document.body.style.overflow = 'hidden'; }
+    } catch (e) {
+        console.error('openEditUserModal error', e);
+    }
+};
+
+// Initialize modal close / submit handlers for the modular feature
+function initializeModalHandlers() {
+    try {
+        const modalOverlay = document.getElementById('userModalOverlay');
+        const closeBtn = document.getElementById('closeUserModalBtn');
+        const cancelBtn = document.getElementById('cancelUserFormBtn');
+        const form = document.getElementById('userForm');
+
+        const closeModal = () => {
+            if (modalOverlay) modalOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+            if (form) form.reset();
+        };
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', (e) => {
+                if (e.target === modalOverlay) closeModal();
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('active')) {
+                closeModal();
+            }
+        });
+
+        if (form) {
+            form.addEventListener('submit', async (ev) => {
+                ev.preventDefault();
+                try {
+                    const editIdEl = document.getElementById('userEditId');
+                    const editIdFromInput = editIdEl ? editIdEl.value : '';
+                    const editIdFromDataset = form && form.dataset ? form.dataset.editId : '';
+                    const editId = editIdFromInput || editIdFromDataset || '';
+                    const emailEl = document.getElementById('user_email');
+                    const passwordEl = document.getElementById('user_password');
+                    const fullNameEl = document.getElementById('user_full_name');
+                    const roleEl = document.getElementById('user_role');
+                    const plantEl = document.getElementById('user_plant');
+
+                    const email = emailEl ? emailEl.value.trim() : '';
+                    const password = passwordEl ? passwordEl.value : '';
+                    const fullName = fullNameEl ? fullNameEl.value.trim() : '';
+                    const role = roleEl ? roleEl.value : 'operator';
+                    const plant = plantEl ? (plantEl.value.trim() || null) : null;
+
+                    console.debug('user form submit', { editIdFromInput, editIdFromDataset, editId, email, fullName, role, plant });
+
+                    if (editId) {
+                        // Update profile
+                        await UserService.update(editId, {
+                            full_name: fullName || email.split('@')[0],
+                            role,
+                            plant
+                        });
+                        (window.showToast || console.log)('User updated', 'success');
+                        closeModal();
+                        await loadAndRender(currentPage);
+                        return;
+                    }
+
+                    // Create new auth user then insert profile
+                    if (!email || !password || password.length < 6) {
+                        (window.showToast || console.error)('Provide valid email and password (min 6 chars)', 'error');
+                        return;
+                    }
+
+                    // Create auth user (admin)
+                    const { data: createData, error: createError } = await supabase.auth.admin.createUser({
+                        email,
+                        password,
+                        user_metadata: { full_name }
+                    });
+                    if (createError) throw createError;
+                    const createdUser = createData && createData.user ? createData.user : (createData ? createData : null);
+                    const newProfile = {
+                        id: createdUser?.id,
+                        email,
+                        full_name: fullName || email.split('@')[0],
+                        role,
+                        plant,
+                        is_approved: true
+                    };
+                    // Insert profile record
+                    await UserService.create(newProfile);
+                    (window.showToast || console.log)('User created', 'success');
+                    closeModal();
+                    await loadAndRender(1);
+                } catch (err) {
+                    console.error('User form submit error', err);
+                    // Handle common PostgREST / Supabase cases with clearer messages
+                    if (err && (err.code === 'PGRST116' || err.code === 'NO_ROWS_UPDATED' || (err.message && err.message.includes('Cannot coerce the result')))) {
+                        (window.showToast || console.error)('Update failed: no rows were updated. Check permissions and RLS policies.', 'error');
+                    } else if (err && err.message) {
+                        (window.showToast || console.error)(`Error saving user: ${err.message}`, 'error');
+                    } else {
+                        (window.showToast || console.error)('Error saving user', 'error');
+                    }
+                }
+            });
+        }
+    } catch (e) {
+        console.error('initializeModalHandlers error', e);
+    }
+}
 

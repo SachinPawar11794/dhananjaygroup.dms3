@@ -5,6 +5,8 @@
 
 import { AuthService } from '../services/authService.js';
 import { showToast } from '../utils/toast.js';
+import profileStore from '../stores/profileStore.js';
+import { Navigation } from './navigation.js';
 
 export async function updateUIForAuth(session) {
     const sidebar = document.getElementById("sidebar");
@@ -22,18 +24,83 @@ export async function updateUIForAuth(session) {
         if (loginPage) loginPage.style.display = "none";
         if (userMenu) userMenu.style.display = "flex";
         if (loginBtn) loginBtn.style.display = "none";
-        if (userEmail) userEmail.textContent = session.user.email || "";
 
-        // Check if user is admin
-        const isAdmin = await AuthService.isAdmin(session.user.id);
+        // Refresh and store profile globally
+        const profile = await profileStore.refreshProfile();
+        // Expose quick refresh helper
+        try { window.refreshProfile = profileStore.refreshProfile; } catch (e) {}
+
+        if (userEmail) userEmail.textContent = (profile && (profile.full_name || profile.email)) || session.user.email || "";
+
+        const isAdmin = profile && profile.role === 'admin';
+        const isHod = profile && profile.role === 'hod';
+        // Show user management to admins and HODs (HOD will be restricted further in the management UI)
         if (userManagementNavItem) {
-            userManagementNavItem.style.display = isAdmin ? "block" : "none";
+            userManagementNavItem.style.display = (isAdmin || isHod) ? "block" : "none";
         }
-        // Show app settings nav item for admins (legacy markup uses id="appSettingsNavItem")
+        // Show app settings nav item for admins only (legacy markup uses id="appSettingsNavItem")
         const appSettingsNavItem = document.getElementById("appSettingsNavItem");
         if (appSettingsNavItem) {
             appSettingsNavItem.style.display = isAdmin ? "block" : "none";
         }
+
+        // If the user exists but their profile is present and not approved (and they are not admin),
+        // show a Pending Approval page and poll for approval.
+        const pendingPage = document.getElementById('pendingApprovalPage');
+        const pendingRefreshBtn = document.getElementById('pendingRefreshBtn');
+        if (profile && profile.is_approved === false && profile.role !== 'admin') {
+            // Show pending page and hide main layout
+            if (pendingPage) pendingPage.style.display = 'block';
+            if (mainLayout) mainLayout.style.display = 'none';
+
+            // Wire refresh button
+            if (pendingRefreshBtn) {
+                pendingRefreshBtn.onclick = async () => {
+                    const refreshed = await profileStore.refreshProfile();
+                    if (refreshed && refreshed.is_approved) {
+                        // Approved - navigate to dashboard
+                        try { Navigation.navigateToPath('/pms/dashboard'); } catch (e) {}
+                        // Re-run UI update
+                        await updateUIForAuth(session);
+                    } else {
+                        showToast('Still pending approval', 'info');
+                    }
+                };
+            }
+
+            // Start a poll (if not already started) to refresh profile every 12 seconds
+            if (!window.__pendingApprovalPoll) {
+                window.__pendingApprovalPoll = setInterval(async () => {
+                    const refreshed = await profileStore.refreshProfile();
+                    if (refreshed && refreshed.is_approved) {
+                        clearInterval(window.__pendingApprovalPoll);
+                        window.__pendingApprovalPoll = null;
+                        try { Navigation.navigateToPath('/pms/dashboard'); } catch (e) {}
+                        await updateUIForAuth(session);
+                    }
+                }, 12000);
+            }
+
+            // Do not continue rendering the main app for unapproved users
+            return;
+        } else {
+            if (pendingPage) pendingPage.style.display = 'none';
+            if (window.__pendingApprovalPoll) {
+                clearInterval(window.__pendingApprovalPoll);
+                window.__pendingApprovalPoll = null;
+            }
+        }
+
+        // Route by role (map to the dashboard page; adjust if you add role-specific dashboard routes)
+        const role = profile && profile.role ? profile.role : 'operator';
+        const rolePathMap = {
+            operator: '/pms/dashboard',
+            hod: '/pms/dashboard',
+            admin: '/pms/dashboard'
+        };
+        try {
+            Navigation.navigateToPath(rolePathMap[role] || '/pms/dashboard');
+        } catch (e) { /* navigation best-effort */ }
     } else {
         // User is not authenticated
         if (sidebar) sidebar.style.display = "none";
@@ -142,5 +209,92 @@ export function initializeAuthentication() {
         }
     } catch (err) {
         console.error('initializeAuthentication (login) error', err);
+    }
+    // Auth tab switching and signup handling (login page)
+    try {
+        const authTabs = document.querySelectorAll(".auth-tab");
+        const signupForm = document.getElementById("signupForm");
+        const switchToSignupLink = document.getElementById("switchToSignupLink");
+        const switchToLoginLink = document.getElementById("switchToLoginLink");
+        const forgotPasswordLink = document.getElementById("forgotPasswordLink");
+        const signupError = document.getElementById("signupError");
+
+        const switchToTab = (tabName) => {
+            const targetTab = document.querySelector(`.auth-tab[data-tab="${tabName}"]`);
+            if (targetTab) targetTab.click();
+        };
+
+        authTabs.forEach((tab) => {
+            tab.addEventListener("click", () => {
+                const targetTab = tab.getAttribute("data-tab");
+                authTabs.forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+                // Show/hide login/signup forms
+                if (loginForm) loginForm.classList.toggle("active", targetTab === "login");
+                if (signupForm) signupForm.classList.toggle("active", targetTab === "signup");
+            });
+        });
+
+        if (switchToSignupLink) {
+            switchToSignupLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                switchToTab("signup");
+            });
+        }
+        if (switchToLoginLink) {
+            switchToLoginLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                switchToTab("login");
+            });
+        }
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener("click", (e) => {
+                e.preventDefault();
+                showToast("Please contact your administrator to reset password.", "info");
+            });
+        }
+
+        if (signupForm) {
+            const prev = signupForm.__mod_signup_handler;
+            if (prev) {
+                try { signupForm.removeEventListener('submit', prev); } catch (e) {}
+            }
+            const submitHandler = async (e) => {
+                e.preventDefault();
+                try {
+                    if (signupError) { signupError.style.display = 'none'; signupError.textContent = ''; }
+                    const emailEl = document.getElementById("signupEmail");
+                    const passEl = document.getElementById("signupPassword");
+                    const passConfirmEl = document.getElementById("signupPasswordConfirm");
+                    const email = emailEl ? (emailEl.value || '').trim() : '';
+                    const password = passEl ? (passEl.value || '') : '';
+                    const passwordConfirm = passConfirmEl ? (passConfirmEl.value || '') : '';
+                    if (!email || !password) {
+                        if (signupError) { signupError.textContent = 'Please enter email and password.'; signupError.style.display = 'block'; }
+                        return;
+                    }
+                    if (password !== passwordConfirm) {
+                        if (signupError) { signupError.textContent = 'Passwords do not match.'; signupError.style.display = 'block'; }
+                        return;
+                    }
+                    const result = await AuthService.signUp(email, password);
+                    if (!result || result.success === false) {
+                        const msg = (result && result.error) ? result.error : 'Signup failed';
+                        if (signupError) { signupError.textContent = msg; signupError.style.display = 'block'; }
+                        return;
+                    }
+                    showToast('Signup successful. Check your email to confirm and wait for approval.', 'success');
+                    // Switch back to login tab for the user to login after confirmation
+                    switchToTab('login');
+                } catch (err) {
+                    console.error('Signup error:', err);
+                    if (signupError) { signupError.textContent = err.message || 'Signup failed'; signupError.style.display = 'block'; }
+                }
+            };
+            signupForm.__mod_signup_handler = submitHandler;
+            signupForm.addEventListener('submit', submitHandler);
+        }
+    } catch (err) {
+        console.error('initializeAuthentication (signup/tab) error', err);
     }
 }

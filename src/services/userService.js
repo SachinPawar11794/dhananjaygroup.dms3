@@ -41,15 +41,20 @@ export class UserService {
     }
 
     static async update(id, profile) {
+        // Use select() without .single() to detect zero-row updates (which often indicate RLS/permission issues)
         const { data, error } = await supabase
             .from('profiles')
             .update(profile)
             .eq('id', id)
-            .select()
-            .single();
+            .select();
 
         if (error) throw error;
-        return data;
+        if (!data || data.length === 0) {
+            const err = new Error('No rows were updated. This usually means the row does not exist or Row Level Security (RLS) prevented the update.');
+            err.code = 'NO_ROWS_UPDATED';
+            throw err;
+        }
+        return data[0];
     }
 
     static async delete(id) {
@@ -74,45 +79,18 @@ export class UserService {
     }
 
     static async syncUsers() {
-        // Get all auth users
-        const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
-        
-        if (authError) throw authError;
-
-        // Get existing profiles
-        const { data: existingProfiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, email');
-
-        if (profileError) throw profileError;
-
-        const existingIds = new Set(existingProfiles.map(p => p.id));
-        const newUsers = [];
-
-        for (const user of authUsers.users) {
-            if (!existingIds.has(user.id)) {
-                newUsers.push({
-                    id: user.id,
-                    email: user.email,
-                    full_name: user.email?.split('@')[0].replace(/[._]/g, ' ').split(' ').map(word => 
-                        word.charAt(0).toUpperCase() + word.slice(1)
-                    ).join(' ') || '',
-                    role: 'operator',
-                    plant: null,
-                    is_approved: false
-                });
-            }
+        // Prefer server-side RPC to perform sync (SECURITY DEFINER function).
+        // This avoids using the admin API from the browser which is not allowed for anon clients.
+        try {
+            const { data, error } = await supabase.rpc('sync_all_auth_users_to_profiles');
+            if (error) throw error;
+            // Expect the RPC to return the number of synced rows (integer)
+            const synced = (data && typeof data === 'number') ? data : (data && data.synced) ? data.synced : 0;
+            return { synced };
+        } catch (err) {
+            // Rethrow to caller
+            throw err;
         }
-
-        if (newUsers.length > 0) {
-            const { error: insertError } = await supabase
-                .from('profiles')
-                .insert(newUsers);
-
-            if (insertError) throw insertError;
-        }
-
-        return { synced: newUsers.length };
     }
 }
 

@@ -6896,6 +6896,36 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
     
+    // Delegate clicks for hourly report buttons (works even if buttons are added later)
+    document.addEventListener('click', (e) => {
+        const btn = e.target;
+        if (!btn) return;
+        try {
+            const gen = btn.closest && btn.closest('#generateHourlyReportBtn');
+            if (gen) {
+                e.preventDefault();
+                if (typeof generateHourlyReport === 'function') generateHourlyReport();
+                return;
+            }
+            const archiveOld = btn.closest && btn.closest('#archiveOldReportsBtn');
+            if (archiveOld) {
+                e.preventDefault();
+                if (confirm("Are you sure you want to archive old reports now? This will mark reports older than the configured days as archived.")) {
+                    if (typeof archiveOldHourlyReports === 'function') archiveOldHourlyReports();
+                }
+                return;
+            }
+            const cfg = btn.closest && btn.closest('#archiveConfigBtn');
+            if (cfg) {
+                e.preventDefault();
+                if (typeof openArchiveConfigModal === 'function') openArchiveConfigModal();
+                return;
+            }
+        } catch (err) {
+            console.error('delegated click handler error', err);
+        }
+    });
+    
     // Hourly Report pagination
     const prevBtn = document.getElementById("hourlyReportPrevBtn");
     const nextBtn = document.getElementById("hourlyReportNextBtn");
@@ -7800,15 +7830,17 @@ async function syncUsersManually() {
         
         // Call the RPC function to sync and get all users
         const { data: allUsers, error: syncError } = await window.supabase
-            .rpc('get_all_users_for_admin');
+            .rpc('get_all_users_for_admin_v2');
         
         if (syncError) {
             console.error("Sync error:", syncError);
             throw new Error("Failed to sync users: " + (syncError.message || "Unknown error"));
         }
         
-        const syncedCount = allUsers ? allUsers.length : 0;
-        const pendingCount = allUsers ? allUsers.filter(u => !u.is_approved && u.role !== 'admin').length : 0;
+        // Normalize user_id -> id if needed
+        const normalized = (allUsers || []).map(u => ({ ...(u || {}), id: u.id || u.user_id }));
+        const syncedCount = normalized ? normalized.length : 0;
+        const pendingCount = normalized ? normalized.filter(u => !u.is_approved && u.role !== 'admin').length : 0;
         
         showToast(`Sync complete! Found ${syncedCount} users (${pendingCount} pending approval)`, "success");
         
@@ -8085,7 +8117,7 @@ async function loadUsersTable() {
         let profiles = [];
         
         const { data: allUsers, error: usersError } = await window.supabase
-            .rpc('get_all_users_for_admin');
+            .rpc('get_all_users_for_admin_v2');
 
         if (usersError) {
             console.error("Error fetching all users:", usersError);

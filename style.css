@@ -52,6 +52,10 @@ body {
     transition: transform 0.3s ease;
     box-shadow: var(--shadow-md);
 }
+/* Ensure toggled-open sidebar is visible even when default display is none */
+.sidebar.open {
+    display: flex;
+}
 
 .sidebar-header {
     padding: 0.75rem 1rem;

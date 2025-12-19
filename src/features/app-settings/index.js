@@ -122,6 +122,20 @@ async function loadBrandingSettingsIntoForm() {
     }
 }
 
+// Load simple settings statistics (used on App Settings dashboard)
+async function loadSettingsStats() {
+    try {
+        const { count } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact', head: true });
+
+        const settingsUserCountEl = document.getElementById('settingsUserCount');
+        if (settingsUserCountEl) settingsUserCountEl.textContent = count || 0;
+    } catch (err) {
+        console.error('loadSettingsStats error', err);
+    }
+}
+
 export async function initFeature(container = null) {
     if (container) container.classList.add('active');
     // If appBrandingPage exists and is active, load branding settings into the form and preview
@@ -132,6 +146,8 @@ export async function initFeature(container = null) {
         // still load global branding (so header/sidebar show current branding)
         await loadBrandingSettingsIntoForm();
     }
+    // Also load basic settings statistics (dashboard counts)
+    await loadSettingsStats();
 }
 
 export function destroyFeature() {
