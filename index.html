@@ -73,7 +73,26 @@
     /* Mobile: move user controls into sidebar and hide header user menu */
     @media (max-width: 768px) {
         .user-menu { display: none !important; }
-        .sidebar-footer { display: flex !important; align-items:center; justify-content:space-between; }
+        .sidebar-footer { display: flex !important; }
+        /* Stack username and logout vertically for better spacing on mobile */
+        .sidebar-footer .sidebar-user {
+            width: 100%;
+            display: flex !important;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+            padding: 8px 0;
+        }
+        .sidebar-footer .sidebar-user .sidebar-user-info {
+            width: 100%;
+        }
+        .sidebar-footer .sidebar-user .btn-secondary {
+            width: 100%;
+        }
+        .sidebar-user-email {
+            max-width: 100%;
+            display: block;
+        }
     }
 </style>
 
