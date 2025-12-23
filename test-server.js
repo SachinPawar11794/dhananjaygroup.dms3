@@ -26,10 +26,23 @@ const MIME_TYPES = {
 };
 
 const server = createServer((req, res) => {
-    let filePath = join(__dirname, req.url === '/' ? 'index.html' : req.url);
-    
+    // Strip query string and normalize path (so ?v=... cache-busters don't break file lookup)
+    const reqUrl = req.url || '/';
+    const pathname = (() => {
+        try {
+            // Use URL to safely parse; fallback to raw split if host is missing
+            return new URL(reqUrl, 'http://localhost').pathname;
+        } catch {
+            return reqUrl.split('?')[0];
+        }
+    })();
+
+    let filePath = join(__dirname, pathname === '/' ? 'index.html' : pathname);
+
     // Security: prevent directory traversal
-    if (!filePath.startsWith(__dirname)) {
+    const normalized = filePath.replace(/\\/g, '/');
+    const rootNormalized = __dirname.replace(/\\/g, '/');
+    if (!normalized.startsWith(rootNormalized)) {
         res.writeHead(403);
         res.end('Forbidden');
         return;

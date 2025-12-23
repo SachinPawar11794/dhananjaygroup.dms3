@@ -1,0 +1,10 @@
+DB_HOST=34.93.85.1
+DB_PORT=5432
+DB_USER=postgres
+DB_PASS=$Sachin#9595
+DB_NAME=dmsdb
+
+# Port for the local API server
+LOCAL_API_PORT=3001
+
+

@@ -1,22 +1,91 @@
-// Supabase Configuration - Loaded immediately for legacy script.js compatibility
-// Using CDN import for immediate availability
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm";
+// Adapter that replaces Supabase data access with our backend API.
+// Backend expects POST /query with a Supabase-style query object.
+const getBackendBase = () => {
+  if (typeof window === 'undefined') return '';
+  if (window.__BACKEND_API_URL__) return window.__BACKEND_API_URL__;
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:3001';
+  }
+  return '';
+};
 
-// Supabase Configuration
-// The anon key is safe to expose because:
-// 1. It's designed for client-side use
-// 2. RLS policies restrict access to authenticated users only
-// 3. Without authentication, the key alone cannot access data
-const supabaseUrl = "https://tzoloagoaysipwxuyldu.supabase.co";
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR6b2xvYWdvYXlzaXB3eHV5bGR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MDM3MzIsImV4cCI6MjA3ODk3OTczMn0.BwC-uFnlkWtaGNVEee4VFuL-trsdz1aawDC77F3afWk";
+const BASE_URL = getBackendBase();
 
-// Create and export Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+function createQueryAdapter(table) {
+  const state = {
+    table,
+    action: 'select',
+    select: '*',
+    filters: [],
+    order: null,
+    range: null,
+    payload: null,
+    single: false,
+    count: null,
+    orRaw: null,
+    not: null
+  };
 
-// Make available globally for backward compatibility (CRITICAL for script.js)
+  const q = {
+    from() { return q; },
+    select(selectStr, opts) {
+      if (selectStr) state.select = selectStr;
+      if (opts && opts.count) state.count = opts.count;
+      state.action = 'select';
+      return q;
+    },
+    eq(column, value) { state.filters.push({ type: 'eq', column, value }); return q; },
+    not(column, op, value) { state.not = { column, op, value }; return q; },
+    or(raw) { state.orRaw = raw; return q; },
+    order(column, opts = {}) { state.order = { column, ascending: !!opts.ascending }; return q; },
+    range(from, to) { state.range = { from, to }; return q; },
+    insert(arr) { state.action = 'insert'; state.payload = Array.isArray(arr) ? arr : [arr]; return q; },
+    update(obj) { state.action = 'update'; state.payload = obj; return q; },
+    delete() { state.action = 'delete'; return q; },
+    single() { state.single = true; return q; },
+    async then(resolve, reject) {
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        // Attach Firebase ID token when available so protected backend ops succeed
+        if (typeof window !== 'undefined' && window.firebaseAuth && window.firebaseAuth.currentUser) {
+          try {
+            const token = await window.firebaseAuth.currentUser.getIdToken();
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+          } catch (err) {
+            // ignore token errors; backend will enforce auth if needed
+            // console.warn('Could not get ID token', err);
+          }
+        }
+
+        const resp = await fetch(`${BASE_URL}/query`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(state)
+        });
+        const json = await resp.json();
+        if (state.single) {
+          if (Array.isArray(json.data)) json.data = json.data[0] || null;
+        }
+        resolve(json);
+      } catch (err) {
+        reject({ data: null, error: { message: err.message || String(err) } });
+      }
+    }
+  };
+  return q;
+}
+
+const supabase = {
+  from(table) {
+    return createQueryAdapter(table);
+  }
+};
+
+export { supabase };
+
 if (typeof window !== 'undefined') {
   window.supabase = supabase;
-  // Also set it immediately for scripts that check before DOMContentLoaded
   document.supabase = supabase;
 }
+
 

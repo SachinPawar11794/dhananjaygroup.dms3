@@ -1,5 +1,6 @@
-import { supabase } from '../config/supabase.js';
 import { showToast } from '../utils/toast.js';
+import { firebaseAuth } from '../config/firebase.js';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut as firebaseSignOut, sendPasswordResetEmail, getAuth, onAuthStateChanged, getIdToken } from 'firebase/auth';
 
 /**
  * Authentication Service
@@ -11,9 +12,11 @@ export class AuthService {
      */
     static async checkAuthState() {
         try {
-            const { data: { session }, error } = await supabase.auth.getSession();
-            if (error) throw error;
-            return session;
+            if (!firebaseAuth) return null;
+            const user = firebaseAuth.currentUser;
+            if (!user) return null;
+            const token = await user.getIdTokenResult();
+            return { user, token };
         } catch (error) {
             console.error('Error checking auth state:', error);
             return null;
@@ -25,13 +28,9 @@ export class AuthService {
      */
     static async signIn(email, password) {
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password
-            });
-            
-            if (error) throw error;
-            return { success: true, data };
+            if (!firebaseAuth) throw new Error('Firebase not configured');
+            const userCredential = await signInWithEmailAndPassword(firebaseAuth, email, password);
+            return { success: true, data: userCredential };
         } catch (error) {
             console.error('Sign in error:', error);
             return { success: false, error: error.message };
@@ -43,13 +42,9 @@ export class AuthService {
      */
     static async signUp(email, password) {
         try {
-            const { data, error } = await supabase.auth.signUp({
-                email,
-                password
-            });
-            
-            if (error) throw error;
-            return { success: true, data };
+            if (!firebaseAuth) throw new Error('Firebase not configured');
+            const userCredential = await createUserWithEmailAndPassword(firebaseAuth, email, password);
+            return { success: true, data: userCredential };
         } catch (error) {
             console.error('Sign up error:', error);
             return { success: false, error: error.message };
@@ -61,14 +56,8 @@ export class AuthService {
      */
     static async signOut() {
         try {
-            // Ensure a session exists before attempting signOut to avoid AuthSessionMissingError
-            const { data: { session } } = await supabase.auth.getSession();
-            if (!session) {
-                // Nothing to sign out; treat as successful sign out for UI purposes
-                return { success: true };
-            }
-            const { error } = await supabase.auth.signOut();
-            if (error) throw error;
+            if (!firebaseAuth) return { success: true };
+            await firebaseSignOut(firebaseAuth);
             return { success: true };
         } catch (error) {
             // If session is missing, swallow the error and return success for idempotency
@@ -85,11 +74,8 @@ export class AuthService {
      */
     static async resetPassword(email) {
         try {
-            const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                redirectTo: `${window.location.origin}${window.location.pathname}`
-            });
-            
-            if (error) throw error;
+            if (!firebaseAuth) throw new Error('Firebase not configured');
+            await sendPasswordResetEmail(firebaseAuth, email, { url: `${window.location.origin}${window.location.pathname}` });
             return { success: true };
         } catch (error) {
             console.error('Reset password error:', error);
@@ -102,9 +88,8 @@ export class AuthService {
      */
     static async getCurrentUser() {
         try {
-            const { data: { user }, error } = await supabase.auth.getUser();
-            if (error) throw error;
-            return user;
+            if (!firebaseAuth) return null;
+            return firebaseAuth.currentUser;
         } catch (error) {
             console.error('Get user error:', error);
             return null;
@@ -116,14 +101,15 @@ export class AuthService {
      */
     static async getUserProfile(userId) {
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single();
-            
-            if (error) throw error;
-            return data;
+            // Profiles are served by backend via the data adapter; reuse that interface
+            const res = await fetch(`${window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '')}/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ table: 'profiles', action: 'select', select: '*', filters: [{ type: 'eq', column: 'id', value: userId }], single: true })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            return json.data;
         } catch (error) {
             console.error('Get profile error:', error);
             return null;
@@ -147,7 +133,8 @@ export class AuthService {
      * Subscribe to auth state changes
      */
     static onAuthStateChange(callback) {
-        return supabase.auth.onAuthStateChange(callback);
+        if (!firebaseAuth) return () => {};
+        return onAuthStateChanged(firebaseAuth, callback);
     }
 }
 
