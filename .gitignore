@@ -1,6 +1,8 @@
 # Dependencies
 node_modules/
-package-lock.json
+yarn.lock
+# package-lock.json is intentionally tracked for reproducible CI builds
+# (was previously ignored; keep lockfile committed)
 yarn.lock
 
 # Build output
