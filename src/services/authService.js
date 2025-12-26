@@ -117,6 +117,25 @@ export class AuthService {
     }
 
     /**
+     * Get user profile by email from profiles table
+     */
+    static async getUserProfileByEmail(email) {
+        try {
+            const res = await fetch(`${window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '')}/query`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ table: 'profiles', action: 'select', select: '*', filters: [{ type: 'eq', column: 'email', value: email }], single: true })
+            });
+            const json = await res.json();
+            if (json.error) throw new Error(json.error.message);
+            return json.data;
+        } catch (error) {
+            console.error('Get profile by email error:', error);
+            return null;
+        }
+    }
+
+    /**
      * Check if user is admin
      */
     static async isAdmin(userId) {

@@ -36,7 +36,8 @@ export async function refreshProfile(retries = 3) {
 		let attempt = 0;
 		let profile = null;
 		while (attempt < retries) {
-			profile = await AuthService.getUserProfile(user.id);
+			// Use email for lookup (Firebase UID doesn't match database UUID)
+			profile = await AuthService.getUserProfileByEmail(user.email);
 			if (profile) break;
 			// Wait 300-500ms before retrying
 			const delay = 300 + Math.floor(Math.random() * 200);
