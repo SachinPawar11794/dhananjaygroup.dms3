@@ -36,9 +36,6 @@ export async function updateUIForAuth(session) {
         // Expose quick refresh helper
         try { window.refreshProfile = profileStore.refreshProfile; } catch (e) {}
         
-        // DEBUG: Log profile for troubleshooting
-        console.log('🔐 Auth: Loaded profile:', profile);
-        console.log('🔐 Auth: profile.role =', profile?.role);
 
         if (userEmail) userEmail.textContent = (profile && (profile.full_name || profile.email)) || session.user.email || "";
         // Also set sidebar user name for mobile sidebar
@@ -53,7 +50,6 @@ export async function updateUIForAuth(session) {
 
         const isAdmin = profile && profile.role === 'admin';
         const isHod = profile && profile.role === 'hod';
-        console.log('🔐 Auth: isAdmin =', isAdmin, ', isHod =', isHod);
         // Show user management to admins and HODs (HOD will be restricted further in the management UI)
         if (userManagementNavItem) {
             userManagementNavItem.style.display = (isAdmin || isHod) ? "block" : "none";
