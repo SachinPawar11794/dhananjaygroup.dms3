@@ -93,6 +93,16 @@ function createQueryAdapter(table) {
 const supabase = {
   from(table) {
     return createQueryAdapter(table);
+  },
+  // RPC is not supported in this adapter - return error to trigger fallback
+  rpc(fnName, params) {
+    return Promise.resolve({ data: null, error: { message: 'RPC not supported in this adapter' } });
+  },
+  // Auth is handled by Firebase, not this adapter
+  auth: {
+    admin: {
+      createUser: () => Promise.resolve({ data: null, error: { message: 'Use Firebase Auth for user management' } })
+    }
   }
 };
 
