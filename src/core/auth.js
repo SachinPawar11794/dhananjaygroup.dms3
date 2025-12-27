@@ -374,7 +374,22 @@ export function initializeAuthentication() {
                         if (signupError) { signupError.textContent = msg; signupError.style.display = 'block'; }
                         return;
                     }
-                    showToast('Signup successful. Check your email to confirm and wait for approval.', 'success');
+                    
+                    // Create profile record for the new user
+                    try {
+                        const { supabase } = await import('../config/supabase.js');
+                        await supabase.from('profiles').insert([{
+                            email: email,
+                            full_name: email.split('@')[0],
+                            role: 'operator',
+                            is_approved: false
+                        }]);
+                    } catch (profileErr) {
+                        console.warn('Failed to create profile for new user:', profileErr);
+                        // Don't fail signup if profile creation fails - admin can create it later
+                    }
+                    
+                    showToast('Signup successful! Please wait for admin approval.', 'success');
                     // Switch back to login tab for the user to login after confirmation
                     switchToTab('login');
                 } catch (err) {
