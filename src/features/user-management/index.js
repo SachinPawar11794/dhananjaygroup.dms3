@@ -286,31 +286,26 @@ function initializeModalHandlers() {
                         return;
                     }
 
-                    // Create new auth user then insert profile
-                    if (!email || !password || password.length < 6) {
-                        (window.showToast || console.error)('Provide valid email and password (min 6 chars)', 'error');
+                    // Create new user profile (auth is handled by Firebase separately)
+                    if (!email) {
+                        (window.showToast || console.error)('Please provide a valid email', 'error');
                         return;
                     }
 
-                    // Create auth user (admin)
-                    const { data: createData, error: createError } = await supabase.auth.admin.createUser({
-                        email,
-                        password,
-                        user_metadata: { full_name }
-                    });
-                    if (createError) throw createError;
-                    const createdUser = createData && createData.user ? createData.user : (createData ? createData : null);
+                    // Note: Firebase Auth user creation must be done by the user signing up,
+                    // or through Firebase Admin SDK on the backend.
+                    // Here we just create the profile record so when user signs up, their profile exists.
                     const newProfile = {
-                        id: createdUser?.id,
                         email,
                         full_name: fullName || email.split('@')[0],
                         role,
                         plant,
                         is_approved: true
                     };
+                    
                     // Insert profile record
                     await UserService.create(newProfile);
-                    (window.showToast || console.log)('User created', 'success');
+                    (window.showToast || console.log)('User profile created. User can now sign up with this email.', 'success');
                     closeModal();
                     await loadAndRender(1);
                 } catch (err) {
