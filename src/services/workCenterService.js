@@ -8,12 +8,12 @@ export class WorkCenterService {
     static async getDistinctPlants() {
         const { data, error } = await supabase
             .from('workcentermaster')
-            .select('Plant')
-            .not('Plant', 'is', null)
-            .order('Plant', { ascending: true });
+            .select('plant')
+            .not('plant', 'is', null)
+            .order('plant', { ascending: true });
 
         if (error) throw error;
-        const uniquePlants = [...new Set((data || []).map(item => item.Plant).filter(Boolean))];
+        const uniquePlants = [...new Set((data || []).map(item => item.plant).filter(Boolean))];
         return uniquePlants;
     }
 }
