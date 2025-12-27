@@ -1569,8 +1569,16 @@
         </div>
     </div>
 
+    <!-- Auth Loading Screen - shown while checking auth state -->
+    <div id="authLoadingScreen" style="position: fixed; inset: 0; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="text-align: center; color: white;">
+            <div style="font-size: 48px; font-weight: bold; margin-bottom: 16px;">DMS</div>
+            <div style="font-size: 14px; opacity: 0.8;">Loading...</div>
+        </div>
+    </div>
+
     <!-- Login Page -->
-    <div id="loginPage" class="login-page">
+    <div id="loginPage" class="login-page" style="display: none;">
         <div class="login-container">
             
             <!-- Left Side - Decorative -->

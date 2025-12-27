@@ -16,6 +16,12 @@ export async function updateUIForAuth(session) {
     const loginBtn = document.getElementById("loginBtn");
     const userEmail = document.getElementById("userEmail");
     const userManagementNavItem = document.getElementById("userManagementNavItem");
+    const authLoadingScreen = document.getElementById("authLoadingScreen");
+    
+    // Hide the auth loading screen once we know the auth state
+    if (authLoadingScreen) {
+        authLoadingScreen.style.display = 'none';
+    }
 
     if (session && session.user) {
         // User is authenticated
