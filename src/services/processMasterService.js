@@ -11,7 +11,7 @@ export class ProcessMasterService {
         const { data, error, count } = await supabase
             .from('process_master')
             .select('*', { count: 'exact' })
-            .order('"Sr. No."', { ascending: true })
+            .order('sr_no', { ascending: true })
             .range(from, to);
 
         if (error) throw error;
@@ -22,7 +22,7 @@ export class ProcessMasterService {
         const { data, error } = await supabase
             .from('process_master')
             .select('*')
-            .order('"Sr. No."', { ascending: true });
+            .order('sr_no', { ascending: true });
 
         if (error) throw error;
         return data;

@@ -104,7 +104,7 @@ async function loadAndRender(page = 1) {
             try {
                 const { data: iotRows } = await supabase
                     .from('iot_database')
-                    .select('Plant,"Machine No.","Part No.","Operation","Value","Work Day Date","Shift"')
+                    .select('plant,machine_no,part_no,operation,value,work_day_date,shift')
                     .eq('Work Day Date', currentWorkDay);
                 if (iotRows && iotRows.length) {
                     iotRows.forEach(row => {
@@ -819,7 +819,7 @@ async function submitSettingsForm() {
 
         const data = {
             plant: document.getElementById("plant")?.value || null,
-            "Machine No.": machine || null,
+            machine_no: machine || null,
             part_no: document.getElementById("part_no")?.value || null,
             part_name: document.getElementById("part_name")?.value || null,
             operation: document.getElementById("operation")?.value || null,
@@ -848,7 +848,7 @@ async function submitSettingsForm() {
             // Use .select().single() to return a single object instead of an array
             result = await supabase
                 .from('settings')
-                .upsert(data, { onConflict: 'plant,"Machine No."' })
+                .upsert(data, { onConflict: 'plant,machine_no' })
                 .select()
                 .single();
         }
