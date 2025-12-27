@@ -9,7 +9,7 @@ export class ShiftScheduleService {
         const to = from + pageSize - 1;
 
         let query = supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('*', { count: 'exact' })
             .order('plant', { ascending: true })
             .range(from, to);
@@ -30,7 +30,7 @@ export class ShiftScheduleService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('*')
             .eq('id', id)
             .single();
@@ -41,7 +41,7 @@ export class ShiftScheduleService {
 
     static async create(schedule) {
         const { data, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .insert([schedule])
             .select()
             .single();
@@ -52,7 +52,7 @@ export class ShiftScheduleService {
 
     static async update(id, schedule) {
         const { data, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .update(schedule)
             .eq('id', id)
             .select()
@@ -64,7 +64,7 @@ export class ShiftScheduleService {
 
     static async delete(id) {
         const { error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .delete()
             .eq('id', id);
 
@@ -73,7 +73,7 @@ export class ShiftScheduleService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;
@@ -82,7 +82,7 @@ export class ShiftScheduleService {
 
     static async getDistinctPlants() {
         const { data, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('plant')
             .order('plant', { ascending: true });
 

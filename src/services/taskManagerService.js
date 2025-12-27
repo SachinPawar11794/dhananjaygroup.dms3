@@ -9,7 +9,7 @@ export class TaskManagerService {
         const to = from + pageSize - 1;
 
         let query = supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .select('*', { count: 'exact' })
             .order('planned_date', { ascending: false })
             .range(from, to);
@@ -39,7 +39,7 @@ export class TaskManagerService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .select('*')
             .eq('id', id)
             .single();
@@ -50,7 +50,7 @@ export class TaskManagerService {
 
     static async create(task) {
         const { data, error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .insert([task])
             .select()
             .single();
@@ -61,7 +61,7 @@ export class TaskManagerService {
 
     static async update(id, task) {
         const { data, error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .update(task)
             .eq('id', id)
             .select()
@@ -73,7 +73,7 @@ export class TaskManagerService {
 
     static async delete(id) {
         const { error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .delete()
             .eq('id', id);
 
@@ -82,7 +82,7 @@ export class TaskManagerService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;
@@ -91,7 +91,7 @@ export class TaskManagerService {
 
     static async getStats() {
         const { data, error } = await supabase
-            .from('TaskManager')
+            .from('taskmanager')
             .select('status');
 
         if (error) throw error;

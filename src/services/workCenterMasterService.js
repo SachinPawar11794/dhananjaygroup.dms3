@@ -9,7 +9,7 @@ export class WorkCenterMasterService {
         const to = from + pageSize - 1;
 
         const { data, error, count } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('*', { count: 'exact' })
             .order('"Machine"', { ascending: true })
             .range(from, to);
@@ -20,7 +20,7 @@ export class WorkCenterMasterService {
 
     static async getAllWithoutPagination() {
         const { data, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('*')
             .order('"Machine"', { ascending: true });
 
@@ -30,7 +30,7 @@ export class WorkCenterMasterService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('*')
             .eq('id', id)
             .single();
@@ -41,7 +41,7 @@ export class WorkCenterMasterService {
 
     static async getIoTEnabledMachines(plant = null) {
         let query = supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('"Machine", "Plant"')
             .eq('"IoT Enabled"', true)
             .order('"Machine"', { ascending: true });
@@ -57,7 +57,7 @@ export class WorkCenterMasterService {
 
     static async create(machine) {
         const { data, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .insert([machine])
             .select()
             .single();
@@ -68,7 +68,7 @@ export class WorkCenterMasterService {
 
     static async update(id, machine) {
         const { data, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .update(machine)
             .eq('id', id)
             .select()
@@ -80,7 +80,7 @@ export class WorkCenterMasterService {
 
     static async delete(id) {
         const { error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .delete()
             .eq('id', id);
 
@@ -89,7 +89,7 @@ export class WorkCenterMasterService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;

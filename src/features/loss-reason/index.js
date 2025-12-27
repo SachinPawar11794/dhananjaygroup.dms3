@@ -28,7 +28,7 @@ async function loadAndRender(page = 1) {
     if (errorEl) errorEl.style.display = 'none';
     try {
         const { data, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*')
             .order('id', { ascending: true });
         if (error) throw error;
@@ -71,7 +71,7 @@ async function loadAndRender(page = 1) {
                 tr.querySelector('.btn-delete')?.addEventListener('click', async () => {
                     if (!confirm('Delete this loss reason?')) return;
                     try {
-                        const { error: delErr } = await supabase.from('LossReason').delete().eq('id', id);
+                        const { error: delErr } = await supabase.from('lossreason').delete().eq('id', id);
                         if (delErr) throw delErr;
                         (window.showToast || console.log)('Deleted', 'success');
                         await loadAndRender(p);

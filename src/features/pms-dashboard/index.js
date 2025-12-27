@@ -11,14 +11,14 @@ export async function initFeature(container = null) {
 
         // Process Master count
         const { count: processCount } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*', { count: 'exact', head: true });
         const processEl = document.getElementById("pmsProcessCount");
         if (processEl) processEl.textContent = processCount || 0;
 
         // Work Center Master count
         const { count: machineCount } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('*', { count: 'exact', head: true });
         const machineEl = document.getElementById("pmsMachineCount");
         if (machineEl) machineEl.textContent = machineCount || 0;
@@ -27,7 +27,7 @@ export async function initFeature(container = null) {
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const { count: iotCount } = await supabase
-            .from('IoT Database')
+            .from('iot_database')
             .select('*', { count: 'exact', head: true })
             .gte("Timestamp", yesterday.toISOString());
         const iotEl = document.getElementById("pmsIoTCount");
@@ -35,21 +35,21 @@ export async function initFeature(container = null) {
 
         // Shift schedule count
         const { count: shiftScheduleCount } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('*', { count: 'exact', head: true });
         const shiftEl = document.getElementById("pmsShiftScheduleCount");
         if (shiftEl) shiftEl.textContent = shiftScheduleCount || 0;
 
         // Loss Reason count
         const { count: lossReasonCount } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*', { count: 'exact', head: true });
         const lossEl = document.getElementById("pmsLossReasonCount");
         if (lossEl) lossEl.textContent = lossReasonCount || 0;
 
         // Hourly report count
         const { count: hourlyReportCount } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .select('*', { count: 'exact', head: true });
         const hourlyEl = document.getElementById("pmsHourlyReportCount");
         if (hourlyEl) hourlyEl.textContent = hourlyReportCount || 0;

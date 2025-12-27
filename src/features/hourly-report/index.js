@@ -296,7 +296,7 @@ async function loadAndRender(page = 1) {
     try {
         // Fetch reports (small dataset expected; use filters client-side)
         const { data, error } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .select('*')
             .order('id', { ascending: false });
         if (error) throw error;

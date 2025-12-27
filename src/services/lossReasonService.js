@@ -9,7 +9,7 @@ export class LossReasonService {
         const to = from + pageSize - 1;
 
         const { data, error, count } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*', { count: 'exact' })
             .order('"Loss Reason"', { ascending: true })
             .range(from, to);
@@ -20,7 +20,7 @@ export class LossReasonService {
 
     static async getAllWithoutPagination() {
         const { data, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*')
             .order('"Loss Reason"', { ascending: true });
 
@@ -30,7 +30,7 @@ export class LossReasonService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*')
             .eq('id', id)
             .single();
@@ -41,7 +41,7 @@ export class LossReasonService {
 
     static async create(lossReason) {
         const { data, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .insert([lossReason])
             .select()
             .single();
@@ -52,7 +52,7 @@ export class LossReasonService {
 
     static async update(id, lossReason) {
         const { data, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .update(lossReason)
             .eq('id', id)
             .select()
@@ -64,7 +64,7 @@ export class LossReasonService {
 
     static async delete(id) {
         const { error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .delete()
             .eq('id', id);
 
@@ -73,7 +73,7 @@ export class LossReasonService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('LossReason')
+            .from('lossreason')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;

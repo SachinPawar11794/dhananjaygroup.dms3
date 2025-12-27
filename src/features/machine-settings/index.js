@@ -85,7 +85,7 @@ async function loadAndRender(page = 1) {
         if (currentWorkDay) {
             try {
                 const { data: hourlyRows } = await supabase
-                    .from('HourlyReport')
+                    .from('hourlyreport')
                     .select('Plant,"Machine No.","Part No.","Operation","Hourly Target","Work Day Date","Shift"')
                     .eq('Work Day Date', currentWorkDay);
                 if (hourlyRows && hourlyRows.length) {
@@ -103,7 +103,7 @@ async function loadAndRender(page = 1) {
 
             try {
                 const { data: iotRows } = await supabase
-                    .from('IoT Database')
+                    .from('iot_database')
                     .select('Plant,"Machine No.","Part No.","Operation","Value","Work Day Date","Shift"')
                     .eq('Work Day Date', currentWorkDay);
                 if (iotRows && iotRows.length) {
@@ -437,7 +437,7 @@ async function loadMachinesForPlant(selectedPlant = null) {
 async function loadProcessMasterData() {
     try {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*');
         if (error) throw error;
         processMasterData = data || [];

@@ -7,7 +7,7 @@ import { supabase } from '../config/supabase.js';
 export class WorkCenterService {
     static async getDistinctPlants() {
         const { data, error } = await supabase
-            .from('WorkCenterMaster')
+            .from('workcentermaster')
             .select('Plant')
             .not('Plant', 'is', null)
             .order('Plant', { ascending: true });

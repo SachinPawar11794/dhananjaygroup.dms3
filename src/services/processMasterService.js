@@ -9,7 +9,7 @@ export class ProcessMasterService {
         const to = from + pageSize - 1;
 
         const { data, error, count } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*', { count: 'exact' })
             .order('"Sr. No."', { ascending: true })
             .range(from, to);
@@ -20,7 +20,7 @@ export class ProcessMasterService {
 
     static async getAllWithoutPagination() {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*')
             .order('"Sr. No."', { ascending: true });
 
@@ -30,7 +30,7 @@ export class ProcessMasterService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*')
             .eq('id', id)
             .single();
@@ -41,7 +41,7 @@ export class ProcessMasterService {
 
     static async create(process) {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .insert([process])
             .select()
             .single();
@@ -52,7 +52,7 @@ export class ProcessMasterService {
 
     static async update(id, process) {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .update(process)
             .eq('id', id)
             .select()
@@ -64,7 +64,7 @@ export class ProcessMasterService {
 
     static async delete(id) {
         const { error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .delete()
             .eq('id', id);
 
@@ -73,7 +73,7 @@ export class ProcessMasterService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;
@@ -82,7 +82,7 @@ export class ProcessMasterService {
 
     static async getByPartNo(partNo) {
         const { data, error } = await supabase
-            .from('Process Master')
+            .from('process_master')
             .select('*')
             .eq('sap_code', partNo);
 

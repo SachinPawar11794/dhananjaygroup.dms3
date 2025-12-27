@@ -53,7 +53,7 @@ async function loadAndRender(limit = 200) {
     if (table) table.style.display = 'none';
     try {
         const { data, error } = await supabase
-            .from('IoT Database')
+            .from('iot_database')
             .select('*')
             .order('Timestamp', { ascending: false })
             .limit(limit);

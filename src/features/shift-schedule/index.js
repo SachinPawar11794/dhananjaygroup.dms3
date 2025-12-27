@@ -39,7 +39,7 @@ async function loadAndRender(page = 1) {
     try {
         // Fetch all schedules (small dataset expected)
         const { data, error } = await supabase
-            .from('ShiftSchedule')
+            .from('shiftschedule')
             .select('*')
             .order('id', { ascending: true });
         if (error) throw error;

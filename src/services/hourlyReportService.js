@@ -9,7 +9,7 @@ export class HourlyReportService {
         const to = from + pageSize - 1;
 
         let query = supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .select('*', { count: 'exact' })
             .order('date', { ascending: false })
             .order('time', { ascending: false })
@@ -35,7 +35,7 @@ export class HourlyReportService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .select('*')
             .eq('id', id)
             .single();
@@ -46,7 +46,7 @@ export class HourlyReportService {
 
     static async generateReport(reportData) {
         const { data, error } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .insert(reportData)
             .select();
 
@@ -59,7 +59,7 @@ export class HourlyReportService {
         cutoffDate.setDate(cutoffDate.getDate() - archiveFrequencyDays);
 
         const { data, error } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .update({ archive_status: 'Archived' })
             .lt('date', cutoffDate.toISOString().split('T')[0])
             .eq('archive_status', 'Active')
@@ -71,7 +71,7 @@ export class HourlyReportService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('HourlyReport')
+            .from('hourlyreport')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;

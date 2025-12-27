@@ -9,7 +9,7 @@ export class IoTDataService {
         const to = from + pageSize - 1;
 
         let query = supabase
-            .from('IoTData')
+            .from('iot_database')
             .select('*', { count: 'exact' })
             .order('timestamp', { ascending: false })
             .range(from, to);
@@ -30,7 +30,7 @@ export class IoTDataService {
 
     static async getById(id) {
         const { data, error } = await supabase
-            .from('IoTData')
+            .from('iot_database')
             .select('*')
             .eq('id', id)
             .single();
@@ -41,7 +41,7 @@ export class IoTDataService {
 
     static async getDistinctPlants() {
         const { data, error } = await supabase
-            .from('IoTData')
+            .from('iot_database')
             .select('Plant')
             .order('Plant', { ascending: true });
 
@@ -52,7 +52,7 @@ export class IoTDataService {
 
     static async getDistinctMachines(plant = null) {
         let query = supabase
-            .from('IoTData')
+            .from('iot_database')
             .select('"Machine No."')
             .order('"Machine No."', { ascending: true });
 
@@ -68,7 +68,7 @@ export class IoTDataService {
 
     static async getCount() {
         const { count, error } = await supabase
-            .from('IoTData')
+            .from('iot_database')
             .select('*', { count: 'exact', head: true });
 
         if (error) throw error;
