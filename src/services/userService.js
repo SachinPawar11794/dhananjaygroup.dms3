@@ -40,20 +40,13 @@ export class UserService {
     }
 
     static async update(id, profile) {
-        // Use select() without .single() to detect zero-row updates (which often indicate RLS/permission issues)
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('profiles')
             .update(profile)
-            .eq('id', id)
-            .select();
+            .eq('id', id);
 
         if (error) throw error;
-        if (!data || data.length === 0) {
-            const err = new Error('No rows were updated. This usually means the row does not exist or Row Level Security (RLS) prevented the update.');
-            err.code = 'NO_ROWS_UPDATED';
-            throw err;
-        }
-        return data[0];
+        return { id, ...profile };
     }
 
     static async delete(id) {
@@ -66,15 +59,13 @@ export class UserService {
     }
 
     static async approve(id) {
-        const { data, error } = await supabase
+        const { error } = await supabase
             .from('profiles')
             .update({ is_approved: true })
-            .eq('id', id)
-            .select()
-            .single();
+            .eq('id', id);
 
         if (error) throw error;
-        return data;
+        return { id, is_approved: true };
     }
 
     static async syncUsers() {
