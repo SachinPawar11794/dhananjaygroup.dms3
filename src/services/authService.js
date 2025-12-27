@@ -110,7 +110,12 @@ export class AuthService {
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
-            return json.data;
+            // Backend may return array even with single:true - extract first element
+            const data = json.data;
+            if (Array.isArray(data)) {
+                return data[0] || null;
+            }
+            return data;
         } catch (error) {
             console.error('Get profile error:', error);
             return null;
@@ -130,7 +135,12 @@ export class AuthService {
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error.message);
-            return json.data;
+            // Backend may return array even with single:true - extract first element
+            const data = json.data;
+            if (Array.isArray(data)) {
+                return data[0] || null;
+            }
+            return data;
         } catch (error) {
             console.error('Get profile by email error:', error);
             return null;
