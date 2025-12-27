@@ -21,25 +21,15 @@ async function loadAndRender(page = 1) {
         let rows = [];
         let totalCount = 0;
 
-        // Try RPC to get all users combining auth.users + profiles (secure server-side)
-        try {
-            const { data: rpcData, error: rpcErr } = await supabase.rpc('get_all_users_for_admin_v2');
-            if (rpcErr) throw rpcErr;
-            // Normalize rows: some RPCs return user_id instead of id
-            rows = (rpcData || []).map(r => ({ ...(r || {}), id: (r && (r.id || r.user_id)) || undefined }));
-            totalCount = rows.length;
-        } catch (rpcError) {
-            console.warn('RPC get_all_users_for_admin_v2 failed, falling back to profiles:', rpcError);
-            showToast("Admin RPC unavailable - showing profiles only. Run SYNC_ALL_AUTH_USERS_TO_PROFILES.sql or click Sync Users to import all users.", "warning");
-            const { data, count, error } = await supabase
-                .from('profiles')
-                .select('*', { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range((page-1)*pageSize, page*pageSize - 1);
-            if (error) throw error;
-            rows = data || [];
-            totalCount = count || rows.length;
-        }
+        // Load users directly from profiles table
+        const { data, count, error } = await supabase
+            .from('profiles')
+            .select('*', { count: 'exact' })
+            .order('created_at', { ascending: false })
+            .range((page-1)*pageSize, page*pageSize - 1);
+        if (error) throw error;
+        rows = data || [];
+        totalCount = count || rows.length;
 
         if (!rows || rows.length === 0) {
             if (tbody) tbody.innerHTML = '';

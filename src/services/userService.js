@@ -69,18 +69,8 @@ export class UserService {
     }
 
     static async syncUsers() {
-        // Prefer server-side RPC to perform sync (SECURITY DEFINER function).
-        // This avoids using the admin API from the browser which is not allowed for anon clients.
-        try {
-            const { data, error } = await supabase.rpc('sync_all_auth_users_to_profiles');
-            if (error) throw error;
-            // Expect the RPC to return the number of synced rows (integer)
-            const synced = (data && typeof data === 'number') ? data : (data && data.synced) ? data.synced : 0;
-            return { synced };
-        } catch (err) {
-            // Rethrow to caller
-            throw err;
-        }
+        // Sync is not supported with Firebase Auth - users are synced automatically on signup
+        throw new Error('Sync is not needed - users are automatically added to profiles when they sign up');
     }
 }
 
