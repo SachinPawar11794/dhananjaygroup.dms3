@@ -32,12 +32,11 @@ export class UserService {
     static async create(profile) {
         const { data, error } = await supabase
             .from('profiles')
-            .insert([profile])
-            .select()
-            .single();
+            .insert([profile]);
 
         if (error) throw error;
-        return data;
+        // Return the inserted profile (adapter may not support .select() after insert)
+        return data || profile;
     }
 
     static async update(id, profile) {

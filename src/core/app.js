@@ -52,12 +52,33 @@ export async function initializeApp() {
     }
     
     // Listen for auth state changes (Firebase passes user directly, not event/session)
+    // Note: onAuthStateChanged fires immediately - the first call determines initial state
+    let authInitialized = false;
     AuthService.onAuthStateChange((user) => {
+        // Skip showing login page until Firebase has had a moment to restore session
+        if (!authInitialized) {
+            authInitialized = true;
+            // Firebase restored a user from local storage
+            if (user) {
+                updateUIForAuth({ user });
+            } else {
+                // Give Firebase a brief moment to restore session before showing login
+                setTimeout(() => {
+                    // Re-check if user is now available
+                    const currentUser = window.firebaseAuth?.currentUser;
+                    if (currentUser) {
+                        updateUIForAuth({ user: currentUser });
+                    } else {
+                        updateUIForAuth(null);
+                    }
+                }, 100);
+            }
+            return;
+        }
+        
         if (user) {
-            // User is signed in
             updateUIForAuth({ user });
         } else {
-            // User is signed out
             updateUIForAuth(null);
         }
     });
