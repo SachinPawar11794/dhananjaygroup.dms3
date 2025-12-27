@@ -20,11 +20,13 @@ function createQueryAdapter(table) {
     filters: [],
     order: null,
     range: null,
+    limit: null,
     payload: null,
     single: false,
     count: null,
     orRaw: null,
-    not: null
+    not: null,
+    upsertOpts: null
   };
 
   const q = {
@@ -36,14 +38,26 @@ function createQueryAdapter(table) {
       return q;
     },
     eq(column, value) { state.filters.push({ type: 'eq', column, value }); return q; },
+    neq(column, value) { state.filters.push({ type: 'neq', column, value }); return q; },
+    gt(column, value) { state.filters.push({ type: 'gt', column, value }); return q; },
+    gte(column, value) { state.filters.push({ type: 'gte', column, value }); return q; },
+    lt(column, value) { state.filters.push({ type: 'lt', column, value }); return q; },
+    lte(column, value) { state.filters.push({ type: 'lte', column, value }); return q; },
+    like(column, value) { state.filters.push({ type: 'like', column, value }); return q; },
+    ilike(column, value) { state.filters.push({ type: 'ilike', column, value }); return q; },
+    is(column, value) { state.filters.push({ type: 'is', column, value }); return q; },
+    in(column, values) { state.filters.push({ type: 'in', column, value: values }); return q; },
     not(column, op, value) { state.not = { column, op, value }; return q; },
     or(raw) { state.orRaw = raw; return q; },
     order(column, opts = {}) { state.order = { column, ascending: !!opts.ascending }; return q; },
+    limit(count) { state.limit = count; return q; },
     range(from, to) { state.range = { from, to }; return q; },
     insert(arr) { state.action = 'insert'; state.payload = Array.isArray(arr) ? arr : [arr]; return q; },
     update(obj) { state.action = 'update'; state.payload = obj; return q; },
+    upsert(arr, opts) { state.action = 'upsert'; state.payload = Array.isArray(arr) ? arr : [arr]; state.upsertOpts = opts; return q; },
     delete() { state.action = 'delete'; return q; },
     single() { state.single = true; return q; },
+    maybeSingle() { state.single = true; return q; },
     async then(resolve, reject) {
       try {
         const headers = { 'Content-Type': 'application/json' };
