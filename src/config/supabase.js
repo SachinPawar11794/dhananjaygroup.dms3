@@ -6,7 +6,8 @@ const getBackendBase = () => {
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return 'http://localhost:3001';
   }
-  return '';
+  // Production: use Cloud Run backend directly
+  return 'https://dms-api-169633813068.asia-south1.run.app';
 };
 
 const BASE_URL = getBackendBase();

@@ -101,8 +101,9 @@ export class AuthService {
      */
     static async getUserProfile(userId) {
         try {
-            // Profiles are served by backend via the data adapter; reuse that interface
-            const res = await fetch(`${window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '')}/query`, {
+            // Profiles are served by backend via the data adapter
+            const backendUrl = window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://dms-api-169633813068.asia-south1.run.app');
+            const res = await fetch(`${backendUrl}/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ table: 'profiles', action: 'select', select: '*', filters: [{ type: 'eq', column: 'id', value: userId }], single: true })
@@ -121,7 +122,8 @@ export class AuthService {
      */
     static async getUserProfileByEmail(email) {
         try {
-            const res = await fetch(`${window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '')}/query`, {
+            const backendUrl = window.__BACKEND_API_URL__ || (window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://dms-api-169633813068.asia-south1.run.app');
+            const res = await fetch(`${backendUrl}/query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ table: 'profiles', action: 'select', select: '*', filters: [{ type: 'eq', column: 'email', value: email }], single: true })
