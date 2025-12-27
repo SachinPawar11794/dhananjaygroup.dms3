@@ -15,11 +15,11 @@ export class IoTDataService {
             .range(from, to);
 
         if (filters.plant) {
-            query = query.eq('Plant', filters.plant);
+            query = query.eq('plant', filters.plant);
         }
 
         if (filters.machine) {
-            query = query.eq('"Machine No."', filters.machine);
+            query = query.eq('machine_no', filters.machine);
         }
 
         const { data, error, count } = await query;
@@ -42,27 +42,27 @@ export class IoTDataService {
     static async getDistinctPlants() {
         const { data, error } = await supabase
             .from('iot_database')
-            .select('Plant')
-            .order('Plant', { ascending: true });
+            .select('plant')
+            .order('plant', { ascending: true });
 
         if (error) throw error;
-        const uniquePlants = [...new Set(data.map(item => item.Plant).filter(Boolean))];
+        const uniquePlants = [...new Set(data.map(item => item.plant).filter(Boolean))];
         return uniquePlants;
     }
 
     static async getDistinctMachines(plant = null) {
         let query = supabase
             .from('iot_database')
-            .select('"Machine No."')
-            .order('"Machine No."', { ascending: true });
+            .select('machine_no')
+            .order('machine_no', { ascending: true });
 
         if (plant) {
-            query = query.eq('Plant', plant);
+            query = query.eq('plant', plant);
         }
 
         const { data, error } = await query;
         if (error) throw error;
-        const uniqueMachines = [...new Set(data.map(item => item['Machine No.']).filter(Boolean))];
+        const uniqueMachines = [...new Set(data.map(item => item.machine_no).filter(Boolean))];
         return uniqueMachines;
     }
 

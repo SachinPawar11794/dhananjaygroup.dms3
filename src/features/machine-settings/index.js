@@ -86,8 +86,8 @@ async function loadAndRender(page = 1) {
             try {
                 const { data: hourlyRows } = await supabase
                     .from('hourlyreport')
-                    .select('Plant,"Machine No.","Part No.","Operation","Hourly Target","Work Day Date","Shift"')
-                    .eq('Work Day Date', currentWorkDay);
+                    .select('plant,machine_no,part_no,operation,hourly_target,work_day_date,shift')
+                    .eq('work_day_date', currentWorkDay);
                 if (hourlyRows && hourlyRows.length) {
                     hourlyRows.forEach(row => {
                         if (currentShift && row?.Shift && row.Shift !== currentShift) return;
