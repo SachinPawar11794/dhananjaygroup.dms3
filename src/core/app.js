@@ -51,11 +51,13 @@ export async function initializeApp() {
         console.warn('Failed to initialize app settings (branding)', err);
     }
     
-    // Listen for auth state changes
-    AuthService.onAuthStateChange((event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            updateUIForAuth(session);
-        } else if (event === 'SIGNED_OUT') {
+    // Listen for auth state changes (Firebase passes user directly, not event/session)
+    AuthService.onAuthStateChange((user) => {
+        if (user) {
+            // User is signed in
+            updateUIForAuth({ user });
+        } else {
+            // User is signed out
             updateUIForAuth(null);
         }
     });
